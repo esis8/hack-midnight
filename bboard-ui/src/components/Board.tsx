@@ -119,27 +119,22 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
   // Helpers for title ownership logic
   const ZERO32 = ('0x' + '00'.repeat(32)).toLowerCase();
   const isOwnerUninitialized = (ownerHex?: string): boolean => (ownerHex ?? '').toLowerCase() === ZERO32;
-  const canEditTitle = !!boardState && (isOwnerUninitialized(boardState.ownerHex) || boardState.isBoardOwner);
+  const canEditTitle = !!boardState && !boardState.title;
 
   // Submit inline title
-  const onSaveTitle = useCallback(async () => {
+const onSaveTitle = useCallback(async () => {
     try {
       if (!deployedBoardAPI || !boardState) return;
       const trimmed = (titleEditValue ?? '').trim();
       if (!trimmed.length) return;
-
       setIsWorking(true);
-      if (isOwnerUninitialized(boardState.ownerHex)) {
-        await deployedBoardAPI.claimOwnershipAndSetTitle(trimmed);
-      } else if (boardState.isBoardOwner) {
-        await deployedBoardAPI.setTitle(trimmed);
-      }
+      await deployedBoardAPI.setTitleOnce(trimmed);
     } catch (error: unknown) {
       setErrorMessage(error instanceof Error ? error.message : String(error));
     } finally {
       setIsWorking(false);
     }
-  }, [deployedBoardAPI, boardState, titleEditValue, setIsWorking]);
+  }, [deployedBoardAPI, boardState, titleEditValue, setIsWorking, setErrorMessage]);
 
   // Subscriptions to deployment/state/private
   useEffect(() => {
@@ -254,21 +249,17 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
                   size="small"
                   color="primary"
                   inputProps={{ 'data-testid': 'board-title-input', style: { color: 'black' } }}
-                  placeholder={
-                    isOwnerUninitialized(boardState.ownerHex) ? 'Set a title and claim ownership' : 'Change board title'
-                  }
+                  placeholder={'Set board title'}
                   disabled={!canEditTitle || isWorking}
                 />
                 <Button
                   variant="contained"
                   color="primary"
                   onClick={onSaveTitle}
-                  data-testid="board-title-save-btn"
                   disabled={
                     !canEditTitle ||
                     isWorking ||
-                    !(titleEditValue ?? '').trim().length ||
-                    (boardState.title ?? '') === (titleEditValue ?? '').trim()
+                    !(titleEditValue ?? '').trim().length
                   }
                 >
                   Save

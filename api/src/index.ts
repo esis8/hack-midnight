@@ -1,23 +1,4 @@
-// This file is part of midnightntwrk/example-counter.
-// Copyright (C) 2025 Midnight Foundation
-// SPDX-License-Identifier: Apache-2.0
-// Licensed under the Apache License, Version 2.0
-// You may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
-/**
- * Provides types and utilities for working with bulletin board contracts.
- *
- * @packageDocumentation
- */
 
 import contractModule from '../../contract/src/managed/bboard/contract/index.cjs';
 const { Contract, ledger, pureCircuits, STATE } = contractModule;
@@ -40,6 +21,14 @@ import { toHex } from '@midnight-ntwrk/midnight-js-utils';
 /** @internal */
 const bboardContractInstance: BBoardContract = new Contract(witnesses);
 
+// Sal constante para ownership (Bytes<32>)
+const OWNER_SALT: Uint8Array = (() => {
+  const u8 = new Uint8Array(32);
+  const bytes = new TextEncoder().encode('bboard:owner');
+  u8.set(bytes.slice(0, 32));
+  return u8;
+})();
+
 /**
  * An API for a deployed bulletin board.
  */
@@ -53,9 +42,7 @@ export interface DeployedBBoardAPI {
   vote(value: boolean): Promise<void>;
   debugCounts(): Promise<[bigint, bigint]>;
 
-  // Title/ownership management
-  claimOwnershipAndSetTitle(title: string): Promise<void>;
-  setTitle(title: string): Promise<void>;
+  setTitleOnce(title: string): Promise<void>;
 }
 
 /**
@@ -86,7 +73,6 @@ export class BBoardAPI implements DeployedBBoardAPI {
                   ...ledgerState,
                   state: ledgerState.state === STATE.occupied ? 'occupied' : 'vacant',
                   poster: toHex(ledgerState.poster),
-                  owner: toHex(ledgerState.owner),
                 },
               },
             }),
@@ -95,24 +81,21 @@ export class BBoardAPI implements DeployedBBoardAPI {
         privateState$,
       ],
       (ledgerState, privateState) => {
-        const hashedSecretKey = pureCircuits.publicKey(
+        const posterHash = pureCircuits.publicKey(
           privateState.secretKey,
           convert_bigint_to_Uint8Array(32, ledgerState.instance),
         );
-
-        const ownerHex = toHex(ledgerState.owner);
 
         return {
           state: ledgerState.state,
           message: ledgerState.message.value,
           title: ledgerState.title.value,
           instance: ledgerState.instance,
-          ownerHex,
-          isBoardOwner: ownerHex === toHex(hashedSecretKey),
-          isOwner: toHex(ledgerState.poster) === toHex(hashedSecretKey),
-        };
+          isOwner: toHex(ledgerState.poster) === toHex(posterHash),
+        } as BBoardDerivedState;
       },
     );
+
     this.private$ = privateState$.pipe(
       tap((privateState) =>
         logger?.trace({
@@ -170,33 +153,22 @@ export class BBoardAPI implements DeployedBBoardAPI {
     });
   }
 
-  async claimOwnershipAndSetTitle(title: string): Promise<void> {
-    this.logger?.info(`claimOwnershipAndSetTitle: ${title}`);
-    const txData = await this.deployedContract.callTx.claimOwnershipAndSetTitle(title);
+  async setTitleOnce(title: string): Promise<void> {
+    this.logger?.info(`setTitleOnce: ${title}`);
+    const txData = await this.deployedContract.callTx.setTitleOnce(title);
     this.logger?.trace({
-      transactionAdded: {
-        circuit: 'claimOwnershipAndSetTitle',
-        txHash: txData.public.txHash,
-        blockHeight: txData.public.blockHeight,
-      },
-    });
-  }
-
-  async setTitle(title: string): Promise<void> {
-    this.logger?.info(`setTitle: ${title}`);
-    const txData = await this.deployedContract.callTx.setTitle(title);
-    this.logger?.trace({
-      transactionAdded: { circuit: 'setTitle', txHash: txData.public.txHash, blockHeight: txData.public.blockHeight },
+      transactionAdded: { circuit: 'setTitleOnce', txHash: txData.public.txHash, blockHeight: txData.public.blockHeight },
     });
   }
 
   /**
    * Deploys a new bulletin board contract to the network.
    *
-   * Note: El owner se reclamará cuando el deployer use 'claimOwnershipAndSetTitle' por primera vez.
+   * Nota: el owner queda fijado al deployer (hash con sal constante).
    */
-  static async deploy(providers: BBoardProviders, logger?: Logger): Promise<BBoardAPI> {
+ static async deploy(providers: BBoardProviders, logger?: Logger): Promise<BBoardAPI> {
     logger?.info('deployContract');
+
     const deployedBBoardContract = await deployContract<typeof bboardContractInstance>(providers, {
       privateStateId: bboardPrivateStateKey,
       contract: bboardContractInstance,
@@ -228,7 +200,7 @@ export class BBoardAPI implements DeployedBBoardAPI {
 }
 
 /**
- * A namespace that represents the exports from the `'utils'` sub-package.
+ * A namespace that represents the exports from the 'utils' sub-package.
  *
  * @public
  */

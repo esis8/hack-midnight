@@ -84,30 +84,7 @@ export type BBoardDerivedState = {
   readonly state: STATE;
   readonly instance: bigint;
   readonly message: string | undefined;
-
-  /**
-   * The current board title (visible, optional).
-   */
   readonly title: string | undefined;
-
-  /**
-   * Hex-encoded owner public key (Bytes<32>) of the board (deployer/claimed owner).
-   */
-  readonly ownerHex: string;
-
-  /**
-   * True if the current user is the board owner.
-   */
-  readonly isBoardOwner: boolean;
-
-  /**
-   * A readonly flag that determines if the current message was posted by the current user.
-   *
-   * @remarks
-   * The `poster` property of the public (or ledger) state is the public key of the message poster, while
-   * the `secretKey` property of {@link BBoardPrivateState} is the secret key of the current user. If
-   * `poster` corresponds to `secretKey`, then `isOwner` is `true`.
-   */
   readonly isOwner: boolean;
 };
 

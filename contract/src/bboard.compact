@@ -1,17 +1,3 @@
-// This file is part of midnightntwrk/example-counter.
-// Copyright (C) 2025 Midnight Foundation
-// SPDX-License-Identifier: Apache-2.0
-// Licensed under the Apache License, Version 2.0 (the "License");
-// You may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 pragma language_version 0.17.0;
 
@@ -24,17 +10,14 @@ export ledger message: Maybe<Opaque<"string">>;
 export ledger instance: Counter;
 export ledger poster: Bytes<32>;
 
-// Nuevo: título de la board (visible) y propietario (deployer/owner)
 export ledger title: Maybe<Opaque<"string">>;
-export ledger owner: Bytes<32>;
+export ledger titlePoster: Bytes<32>;
 
 constructor() {
     state = STATE.vacant;
     message = none<Opaque<"string">>();
-    // Inicializamos el título como vacío
     title = none<Opaque<"string">>();
-    // Owner no reclamado aún (32 bytes a cero)
-    owner = pad(32, "");
+    titlePoster = pad(32, "");
     instance.increment(1);
 }
 
@@ -60,8 +43,9 @@ export circuit takeDown(): Opaque<"string"> {
     return formerMsg;
 }
 
-export circuit publicKey(sk: Bytes<32>, instance: Bytes<32>): Bytes<32> {
-    return persistentHash<Vector<3, Bytes<32>>>([pad(32, "bboard:pk:"), instance, sk]);
+// Reusamos esta función; el 2° parámetro actúa como "salt".
+export circuit publicKey(sk: Bytes<32>, salt: Bytes<32>): Bytes<32> {
+    return persistentHash<Vector<3, Bytes<32>>>([pad(32, "bboard:pk:"), salt, sk]);
 }
 
 export circuit debugInfo(): [Uint<64>, Uint<64>] {
@@ -73,18 +57,8 @@ export circuit vote(value: Boolean): [] {
   countBoolean(value);
 }
 
-// =============== Gestión de título y ownership ===============
-
-// Reclama el ownership (solo si aún no está fijado) y asigna un título inicial.
-export circuit claimOwnershipAndSetTitle(newTitle: Opaque<"string">): [] {
-    assert(owner == pad(32, ""), "Owner already initialized");
-    owner = disclose(publicKey(localSecretKey(), instance as Field as Bytes<32>));
-    title = some<Opaque<"string">>(disclose(newTitle));
-}
-
-// Cambia el título (solo el owner puede hacerlo).
-export circuit setTitle(newTitle: Opaque<"string">): [] {
-    assert(owner == publicKey(localSecretKey(), instance as Field as Bytes<32>),
-        "Only the owner can set or change the title");
+export circuit setTitleOnce(newTitle: Opaque<"string">): [] {
+    assert(!title.is_some, "Title already set");
+    titlePoster = disclose(publicKey(localSecretKey(), instance as Field as Bytes<32>));
     title = some<Opaque<"string">>(disclose(newTitle));
 }
