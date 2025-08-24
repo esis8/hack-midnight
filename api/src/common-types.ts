@@ -86,6 +86,21 @@ export type BBoardDerivedState = {
   readonly message: string | undefined;
 
   /**
+   * The current board title (visible, optional).
+   */
+  readonly title: string | undefined;
+
+  /**
+   * Hex-encoded owner public key (Bytes<32>) of the board (deployer/claimed owner).
+   */
+  readonly ownerHex: string;
+
+  /**
+   * True if the current user is the board owner.
+   */
+  readonly isBoardOwner: boolean;
+
+  /**
    * A readonly flag that determines if the current message was posted by the current user.
    *
    * @remarks

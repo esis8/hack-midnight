@@ -15,7 +15,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Box } from '@mui/material';
-import { MainLayout, Board } from './components';
+import { Board, MainLayout } from './components';
 import { useDeployedBoardContext } from './hooks';
 import { type BoardDeployment } from './contexts';
 import { type Observable } from 'rxjs';
@@ -43,7 +43,7 @@ const App: React.FC = () => {
 
   return (
     <Box sx={{ background: '#000', minHeight: '100vh' }}>
-      <MainLayout>        
+      <MainLayout>
         {boardDeployments.map((boardDeployment, idx) => (
           <div data-testid={`board-${idx}`} key={`board-${idx}`}>
             <Board boardDeployment$={boardDeployment} />

@@ -24,16 +24,23 @@ export ledger message: Maybe<Opaque<"string">>;
 export ledger instance: Counter;
 export ledger poster: Bytes<32>;
 
+// Nuevo: título de la board (visible) y propietario (deployer/owner)
+export ledger title: Maybe<Opaque<"string">>;
+export ledger owner: Bytes<32>;
+
 constructor() {
     state = STATE.vacant;
     message = none<Opaque<"string">>();
+    // Inicializamos el título como vacío
+    title = none<Opaque<"string">>();
+    // Owner no reclamado aún (32 bytes a cero)
+    owner = pad(32, "");
     instance.increment(1);
 }
 
 witness localSecretKey(): Bytes<32>;
 witness countBoolean(value: Boolean): Uint<64>;
 witness getVotes(): [Uint<64>, Uint<64>];
-
 
 export circuit post(newMessage: Opaque<"string">): [] {
     assert(state == STATE.vacant, "Attempted to post to an occupied board");
@@ -64,4 +71,20 @@ export circuit debugInfo(): [Uint<64>, Uint<64>] {
 // Circuito para votar según el booleano
 export circuit vote(value: Boolean): [] {
   countBoolean(value);
+}
+
+// =============== Gestión de título y ownership ===============
+
+// Reclama el ownership (solo si aún no está fijado) y asigna un título inicial.
+export circuit claimOwnershipAndSetTitle(newTitle: Opaque<"string">): [] {
+    assert(owner == pad(32, ""), "Owner already initialized");
+    owner = disclose(publicKey(localSecretKey(), instance as Field as Bytes<32>));
+    title = some<Opaque<"string">>(disclose(newTitle));
+}
+
+// Cambia el título (solo el owner puede hacerlo).
+export circuit setTitle(newTitle: Opaque<"string">): [] {
+    assert(owner == publicKey(localSecretKey(), instance as Field as Bytes<32>),
+        "Only the owner can set or change the title");
+    title = some<Opaque<"string">>(disclose(newTitle));
 }

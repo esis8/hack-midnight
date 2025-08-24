@@ -1,18 +1,3 @@
-// This file is part of midnightntwrk/example-counter.
-// Copyright (C) 2025 Midnight Foundation
-// SPDX-License-Identifier: Apache-2.0
-// Licensed under the Apache License, Version 2.0 (the "License");
-// You may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 import React, { useCallback, useEffect, useState } from 'react';
 import { type ContractAddress } from '@midnight-ntwrk/compact-runtime';
 import {
@@ -34,12 +19,14 @@ import DeleteIcon from '@mui/icons-material/DeleteOutlined';
 import WriteIcon from '@mui/icons-material/EditNoteOutlined';
 import CopyIcon from '@mui/icons-material/ContentPasteOutlined';
 import StopIcon from '@mui/icons-material/HighlightOffOutlined';
+import RenameIcon from '@mui/icons-material/DriveFileRenameOutlineOutlined';
 import { type BBoardDerivedState, type DeployedBBoardAPI } from '../../../api/src/index';
 import { useDeployedBoardContext } from '../hooks';
 import { type BoardDeployment } from '../contexts';
 import { type Observable } from 'rxjs';
 import { BBoardPrivateState, STATE } from '../../../contract/src/index';
 import { EmptyCardContent } from './Board.EmptyCardContent';
+import { TitleDialog } from './TitleDialog';
 
 /** The props required by the {@link Board} component. */
 export interface BoardProps {
@@ -50,17 +37,6 @@ export interface BoardProps {
 /**
  * Provides the UI for a deployed bulletin board contract; allowing messages to be posted or removed
  * following the rules enforced by the underlying Compact contract.
- *
- * @remarks
- * With no `boardDeployment$` observable, the component will render a UI that allows the user to create
- * or join bulletin boards. It requires a `<DeployedBoardProvider />` to be in scope in order to manage
- * these additional boards. It does this by invoking the `resolve(...)` method on the currently in-
- * scope `DeployedBoardContext`.
- *
- * When a `boardDeployment$` observable is received, the component begins by rendering a skeletal view of
- * itself, along with a loading background. It does this until the board deployment receives a
- * `DeployedBBoardAPI` instance, upon which it will then subscribe to its `state$` observable in order
- * to start receiving the changes in the bulletin board state (i.e., when a user posts a new message).
  */
 export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
   const boardApiProvider = useDeployedBoardContext();
@@ -73,24 +49,18 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
 
   const [isWorking, setIsWorking] = useState(!!boardDeployment$);
 
-  console.log(privateState, 'sdsdsdds');
+  // Dialog for setting/claiming title
+  const [isTitleDialogOpen, setIsTitleDialogOpen] = useState(false);
+
   // Two simple callbacks that call `resolve(...)` to either deploy or join a bulletin board
-  // contract. Since the `DeployedBoardContext` will create a new board and update the UI, we
-  // don't have to do anything further once we've called `resolve`.
   const onCreateBoard = useCallback(() => boardApiProvider.resolve(), [boardApiProvider]);
   const onJoinBoard = useCallback(
     (contractAddress: ContractAddress) => boardApiProvider.resolve(contractAddress),
     [boardApiProvider],
   );
 
-  // Callback to handle the posting of a message. The message text is captured in the `messagePrompt`
-  // state, and we just need to forward it to the `post` method of the `DeployedBBoardAPI` instance
-  // that we received in the `deployedBoardAPI` state.
   const onPostMessage = useCallback(async () => {
-    if (!messagePrompt) {
-      return;
-    }
-
+    if (!messagePrompt) return;
     try {
       if (deployedBoardAPI) {
         setIsWorking(true);
@@ -114,7 +84,7 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
     } finally {
       setIsWorking(false);
     }
-  }, [deployedBoardAPI, setErrorMessage, setIsWorking, messagePrompt]);
+  }, [deployedBoardAPI, setErrorMessage, setIsWorking]);
   const onVotePositive = useCallback(async () => {
     try {
       if (deployedBoardAPI) {
@@ -126,10 +96,8 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
     } finally {
       setIsWorking(false);
     }
-  }, [deployedBoardAPI, setErrorMessage, setIsWorking, messagePrompt]);
+  }, [deployedBoardAPI, setErrorMessage, setIsWorking]);
 
-  // Callback to handle the taking down of a message. Again, we simply invoke the `takeDown` method
-  // of the `DeployedBBoardAPI` instance.
   const onDeleteMessage = useCallback(async () => {
     try {
       if (deployedBoardAPI) {
@@ -149,29 +117,44 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
     }
   }, [deployedBoardAPI]);
 
-  // Subscribes to the `boardDeployment$` observable so that we can receive updates on the deployment.
+  // Helpers for title ownership logic
+  const isOwnerUninitialized = (ownerHex?: string): boolean => (ownerHex ? /^0x0+$/i.test(ownerHex) : false);
+
+  const onOpenTitleDialog = useCallback(() => {
+    setIsTitleDialogOpen(true);
+  }, []);
+
+  const onSubmitTitleDialog = useCallback(
+    async (title: string) => {
+      try {
+        if (!deployedBoardAPI || !boardState) return;
+        setIsWorking(true);
+
+        if (isOwnerUninitialized(boardState.ownerHex)) {
+          await deployedBoardAPI.claimOwnershipAndSetTitle(title);
+        } else if (boardState.isBoardOwner) {
+          await deployedBoardAPI.setTitle(title);
+        }
+      } catch (error: unknown) {
+        setErrorMessage(error instanceof Error ? error.message : String(error));
+      } finally {
+        setIsWorking(false);
+        setIsTitleDialogOpen(false);
+      }
+    },
+    [deployedBoardAPI, boardState, setIsWorking],
+  );
+
+  // Subscriptions to deployment/state/private
   useEffect(() => {
-    if (!boardDeployment$) {
-      return;
-    }
-
+    if (!boardDeployment$) return;
     const subscription = boardDeployment$.subscribe(setBoardDeployment);
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, [boardDeployment$]);
 
-  // Subscribes to the `state$` observable on a `DeployedBBoardAPI` if we receive one, allowing the
-  // component to receive updates to the change in contract state; otherwise we update the UI to
-  // reflect the error was received instead.
   useEffect(() => {
-    if (!boardDeployment) {
-      return;
-    }
-    if (boardDeployment.status === 'in-progress') {
-      return;
-    }
+    if (!boardDeployment) return;
+    if (boardDeployment.status === 'in-progress') return;
 
     setIsWorking(false);
 
@@ -182,22 +165,14 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
       return;
     }
 
-    // We need the board API as well as subscribing to its `state$` observable, so that we can invoke
-    // the `post` and `takeDown` methods later.
     setDeployedBoardAPI(boardDeployment.api);
     const subscription = boardDeployment.api.state$.subscribe(setBoardState);
-    return () => {
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, [boardDeployment, setIsWorking, setErrorMessage, setDeployedBoardAPI]);
 
   useEffect(() => {
-    if (!boardDeployment) {
-      return;
-    }
-    if (boardDeployment.status === 'in-progress') {
-      return;
-    }
+    if (!boardDeployment) return;
+    if (boardDeployment.status === 'in-progress') return;
 
     setIsWorking(false);
 
@@ -208,14 +183,9 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
       return;
     }
 
-    // We need the board API as well as subscribing to its `state$` observable, so that we can invoke
-    // the `post` and `takeDown` methods later.
     setDeployedBoardAPI(boardDeployment.api);
     const subscription = boardDeployment.api.private$.subscribe(setPrivateState);
-    console.log(privateState, 'sdsdsdds');
-    return () => {
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, [boardDeployment, setIsWorking, setErrorMessage, setDeployedBoardAPI]);
 
   return (
@@ -254,15 +224,35 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
               )
             }
             titleTypographyProps={{ color: 'primary' }}
-            title={toShortFormatContractAddress(deployedBoardAPI?.deployedContractAddress) ?? 'Loading...'}
+            title={boardState ? boardState.title ?? 'Loading…' : 'Loading…'}
+            subheader={toShortFormatContractAddress(deployedBoardAPI?.deployedContractAddress) ?? undefined}
             action={
-              deployedBoardAPI?.deployedContractAddress ? (
-                <IconButton title="Copy contract address" onClick={onCopyContractAddress}>
-                  <CopyIcon fontSize="small" />
-                </IconButton>
-              ) : (
-                <Skeleton variant="circular" width={20} height={20} />
-              )
+              <React.Fragment>
+                {deployedBoardAPI?.deployedContractAddress ? (
+                  <IconButton title="Copy contract address" onClick={onCopyContractAddress}>
+                    <CopyIcon fontSize="small" />
+                  </IconButton>
+                ) : (
+                  <Skeleton variant="circular" width={20} height={20} />
+                )}
+                {boardState ? (
+                  <IconButton
+                    title={
+                      isOwnerUninitialized(boardState.ownerHex)
+                        ? 'Claim ownership and set title'
+                        : boardState.isBoardOwner
+                        ? 'Change title'
+                        : 'Title can only be changed by the board owner'
+                    }
+                    onClick={onOpenTitleDialog}
+                    disabled={!isOwnerUninitialized(boardState.ownerHex) && !boardState.isBoardOwner}
+                  >
+                    <RenameIcon fontSize="small" />
+                  </IconButton>
+                ) : (
+                  <Skeleton variant="circular" width={20} height={20} />
+                )}
+              </React.Fragment>
             }
           />
           <CardContent>
@@ -310,7 +300,6 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
                   title="Post message"
                   data-testid="board-post-message-btn"
                   disabled={boardState?.state === STATE.occupied || !messagePrompt?.length}
-                  //onClick={() => onVote(false)}
                   onClick={onPostMessage}
                 >
                   <WriteIcon />
@@ -321,7 +310,6 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
                   disabled={
                     boardState?.state === STATE.vacant || (boardState?.state === STATE.occupied && !boardState.isOwner)
                   }
-                  // onClick={() => onVote(true)}
                   onClick={onDeleteMessage}
                 >
                   <DeleteIcon />
@@ -331,6 +319,14 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
               <Skeleton variant="rectangular" width={80} height={20} />
             )}
           </CardActions>
+
+          <TitleDialog
+            open={isTitleDialogOpen}
+            title={isOwnerUninitialized(boardState?.ownerHex) ? 'Set board title' : 'Change board title'}
+            initialValue={boardState?.title ?? ''}
+            onCancel={() => setIsTitleDialogOpen(false)}
+            onSubmit={onSubmitTitleDialog}
+          />
         </React.Fragment>
       )}
     </Card>
