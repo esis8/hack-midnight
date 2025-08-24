@@ -51,13 +51,13 @@ export const EmptyCardContent: React.FC<Readonly<EmptyCardContentProps>> = ({
           <BoardAddIcon fontSize="large" />
         </Typography>
         <Typography data-testid="board-posted-message" align="center" variant="body2" color="primary.dark">
-          Create a new Board, or join an existing one...
+          Create a new Proposal, or join an existing one...
         </Typography>
       </CardContent>
       <CardActions disableSpacing sx={{ justifyContent: 'center' }}>
         <Tooltip title="Create a new board">
           <IconButton data-testid="board-deploy-btn" onClick={onCreateBoardCallback}>
-            <CreateBoardIcon />
+            <CreateBoardIcon sx={{ color:"white" }} />
           </IconButton>
         </Tooltip>
         <Tooltip title="Join an existing board">
@@ -67,7 +67,7 @@ export const EmptyCardContent: React.FC<Readonly<EmptyCardContentProps>> = ({
               setTextPromptOpen(true);
             }}
           >
-            <JoinBoardIcon />
+            <JoinBoardIcon sx={{ color:"white" }} />
           </IconButton>
         </Tooltip>
       </CardActions>

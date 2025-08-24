@@ -14,20 +14,21 @@
 // limitations under the License.
 
 import React from 'react';
-import { AppBar, Box } from '@mui/material';
+import { AppBar, Box, Typography } from '@mui/material';
 
 /**
- * A simple application level header for the bulletin board application.
+ * Application header for the privacy voting platform
  */
 export const Header: React.FC = () => (
   <AppBar
     position="static"
     data-testid="header"
     sx={{
-      backgroundColor: '#000',
+      backgroundColor: '#0d0d0d',
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
+      boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
     }}
   >
     <Box
@@ -36,10 +37,24 @@ export const Header: React.FC = () => (
         px: 10,
         py: 2.2,
         alignItems: 'center',
+        gap: '1.5rem',
       }}
       data-testid="header-logo"
     >
-      <img src="/midnight-logo.png" alt="logo-image" height={66} />
+      <Typography
+        variant="h4"
+        sx={{
+          fontWeight: 700,
+          letterSpacing: '0.5px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '1rem',
+        }}
+      >
+        🌌 NovaVote
+      </Typography>
+      <Typography variant="body1">POWERED BY</Typography>
+      <img src="/midnight-logo.png" alt="logo-image" height={32} />
     </Box>
   </AppBar>
 );
