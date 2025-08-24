@@ -21,7 +21,12 @@ import {
 import { type BBoardPrivateState, createBBoardPrivateState, witnesses } from '../../contract/src/index';
 import { deployContract, findDeployedContract } from '@midnight-ntwrk/midnight-js-contracts';
 import { combineLatest, map, tap, from, type Observable, shareReplay } from 'rxjs';
-
+import {
+  // createEitherTestUser,
+  encodeToPK,
+  encodeToAddress,
+  toHexPadded,
+} from '../../contract/compact-contracts/contracts/src/token/test/utils/address';
 /** @internal */
 const bboardContractInstance: BBoardContract = new Contract(witnesses);
 
@@ -129,20 +134,17 @@ export class BBoardAPI implements DeployedBBoardAPI {
   static async deploy(providers: BBoardProviders, logger?: Logger): Promise<BBoardAPI> {
     logger?.info('deployContract');
 
-    const initialOwner = providers.walletProvider.coinPublicKey;
-    function hexToBytes(hex: string): Uint8Array {
-      return Uint8Array.from(Buffer.from(hex, 'hex'));
-    }
-    const recipient = {
-      is_left: true,
-      left: { bytes: hexToBytes(initialOwner) },
-      right: { bytes: new Uint8Array(0) },
-    };
+    // const initialOwner = providers.walletProvider.coinPublicKey;
+    // const recipient = {
+    //   is_left: true,
+    //   left: {bytes: initialOwner as Uint8Array},
+    //   right: encodeToAddress(''),
+    // };
     const deployedBBoardContract = await deployContract<typeof bboardContractInstance>(providers, {
       privateStateId: bboardPrivateStateKey,
       contract: bboardContractInstance,
       initialPrivateState: await BBoardAPI.getPrivateState(providers),
-      args: [recipient],
+      // args: [recipient],
       // Este argumento se pasa al constructor Compact
     });
 
