@@ -1,8 +1,8 @@
 
 pragma language_version 0.17.0;
 
-import "../compact-contracts/node_modules/@openzeppelin-compact/contracts/src/access/Ownable"
-  prefix Ownable_;
+//import "../compact-contracts/node_modules/@openzeppelin-compact/contracts/src/access/Ownable"
+//  prefix Ownable_;
 import CompactStandardLibrary;
 
 export ledger message: Maybe<Opaque<"string">>;
@@ -27,10 +27,10 @@ export circuit vote(value: Boolean): [] {
   countBoolean(value);
 }
 
-export circuit owner(): Either<ZswapCoinPublicKey, ContractAddress> {
+/* export circuit owner(): Either<ZswapCoinPublicKey, ContractAddress> {
   return Ownable_owner();
 }
-
+ */
 export circuit setPublishOne(newTitle: Opaque<"string">, newMessage: Opaque<"string">): [] {
     assert(!title.is_some && !message.is_some, "Already published");
     // Ownable_assertOnlyOwner();

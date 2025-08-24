@@ -21,12 +21,12 @@ import {
 import { type BBoardPrivateState, createBBoardPrivateState, witnesses } from '../../contract/src/index';
 import { deployContract, findDeployedContract } from '@midnight-ntwrk/midnight-js-contracts';
 import { combineLatest, map, tap, from, type Observable, shareReplay } from 'rxjs';
-import {
+/* import {
   // createEitherTestUser,
   encodeToPK,
   encodeToAddress,
   toHexPadded,
-} from '../../contract/compact-contracts/contracts/src/token/test/utils/address';
+} from '../../contract/compact-contracts/contracts/src/token/test/utils/address'; */
 /** @internal */
 const bboardContractInstance: BBoardContract = new Contract(witnesses);
 
