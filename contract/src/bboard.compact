@@ -18,21 +18,15 @@ constructor() {
 }
 
 witness localSecretKey(): Bytes<32>;
+witness countBoolean(value: Boolean): Uint<64>;
 
 export circuit publicKey(sk: Bytes<32>, salt: Bytes<32>): Bytes<32> {
     return persistentHash<Vector<3, Bytes<32>>>([pad(32, "bboard:pk:"), salt, sk]);
 }
 
 // Circuito para votar según el booleano
-export circuit vote(choice: Boolean): [] {
-  assert(title.is_some && message.is_some, "Not yet published");
-
-  const revealed: Boolean = disclose(choice);
-  if (revealed) {
-    trueVotes.increment(1);
-  } else {
-    falseVotes.increment(1);
-  }
+export circuit vote(value: Boolean): [] {
+  countBoolean(value);
 }
 
 export circuit setPublishOne(newTitle: Opaque<"string">, newMessage: Opaque<"string">): [] {

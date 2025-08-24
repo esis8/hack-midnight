@@ -209,17 +209,6 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
                   InputLabelProps={{ style: { color: '#d6d6d6' } }}
                   placeholder={'Set board title'}
                   disabled={!canPublish || isWorking}
-                  sx={{
-                    backgroundColor: '#000000', // dark gray background for fields
-                    borderRadius: '8px',
-                    border: '1px solid #333', // subtle border to separate
-                    color: '#f5f5f5', // light text for legibility
-                    padding: '0.6rem 1rem',
-                    fontSize: '0.95rem',
-                    '&::placeholder': {
-                      color: '#888', // softer gray placeholder
-                    },
-                  }}
                 />
                 {canPublish && (
                   <Button
@@ -257,17 +246,6 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
                   value={messagePrompt}
                   onChange={(e) => setMessagePrompt(e.target.value)}
                   disabled={!canPublish || isWorking}
-                  sx={{
-                    backgroundColor: '#000000', // dark gray background for fields
-                    borderRadius: '8px',
-                    border: '1px solid #333', // subtle border to separate
-                    color: '#f5f5f5', // light text for legibility
-                    padding: '0.6rem 1rem',
-                    fontSize: '0.95rem',
-                    '&::placeholder': {
-                      color: '#888', // softer gray placeholder
-                    },
-                  }}
                 />
               ) : (
                 <Typography
@@ -282,7 +260,7 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
                       disabled={isWorking || !deployedBoardAPI}
                       data-testid="vote-up-btn"
                     >
-                      👍 {boardState ? String(boardState.trueVotes) : '?'}
+                      👍 {boardState ? String(privateState?.trueCount) : '?'}
                     </Button>
                     <Button
                       onClick={() => onVote(false)}
@@ -290,7 +268,7 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
                       disabled={isWorking || !deployedBoardAPI}
                       data-testid="vote-down-btn"
                     >
-                      👎 {boardState ? String(boardState.falseVotes) : '?'}
+                      👎 {boardState ? String(privateState?.falseCount) : '?'}
                     </Button>
                   </div>
                 </Typography>
