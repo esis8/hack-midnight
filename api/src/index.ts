@@ -21,7 +21,6 @@
 
 import contractModule from '../../contract/src/managed/bboard/contract/index.cjs';
 const { Contract, ledger, pureCircuits, STATE } = contractModule;
-// import { Contract, ledger, pureCircuits, STATE } from '../../contract/src/index';
 
 import { type ContractAddress, convert_bigint_to_Uint8Array } from '@midnight-ntwrk/compact-runtime';
 import { type Logger } from 'pino';
@@ -32,7 +31,6 @@ import {
   type DeployedBBoardContract,
   bboardPrivateStateKey,
 } from './common-types.js';
-// import { Contract, ledger, pureCircuits, STATE } from '../../contract/src/managed/bboard/contract/index.cjs';
 import { type BBoardPrivateState, createBBoardPrivateState, witnesses } from '../../contract/src/index';
 import * as utils from './utils/index.js';
 import { deployContract, findDeployedContract } from '@midnight-ntwrk/midnight-js-contracts';
@@ -51,6 +49,8 @@ export interface DeployedBBoardAPI {
 
   post: (message: string) => Promise<void>;
   takeDown: () => Promise<void>;
+  vote(value: boolean): Promise<void>;
+  debugCounts(): Promise<[bigint, bigint]>;
 }
 
 /**
@@ -145,6 +145,32 @@ export class BBoardAPI implements DeployedBBoardAPI {
     this.logger?.trace({
       transactionAdded: {
         circuit: 'post',
+        txHash: txData.public.txHash,
+        blockHeight: txData.public.blockHeight,
+      },
+    });
+  }
+
+  async debugCounts(): Promise<[bigint, bigint]> {
+    this.logger?.info('debugCounts');
+    const result = await this.deployedContract.callTx.debugInfo();
+    this.logger?.trace({
+      debugCounts: {
+        trueCount: result.private.result[0],
+        falseCount: result.private.result[1],
+      },
+    });
+    return result.private.result;
+  }
+
+  async vote(value: boolean): Promise<void> {
+    this.logger?.info(`vote: ${value}`);
+
+    const txData = await this.deployedContract.callTx.vote(value);
+
+    this.logger?.trace({
+      transactionAdded: {
+        circuit: 'vote',
         txHash: txData.public.txHash,
         blockHeight: txData.public.blockHeight,
       },

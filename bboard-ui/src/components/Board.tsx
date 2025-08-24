@@ -99,6 +99,26 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
     }
   }, [deployedBoardAPI, setErrorMessage, setIsWorking, messagePrompt]);
 
+  const onVote = useCallback(
+    async (value: boolean) => {
+      if (!value) {
+        return;
+      }
+
+      try {
+        if (deployedBoardAPI) {
+          setIsWorking(true);
+          await deployedBoardAPI.vote(value);
+        }
+      } catch (error: unknown) {
+        setErrorMessage(error instanceof Error ? error.message : String(error));
+      } finally {
+        setIsWorking(false);
+      }
+    },
+    [deployedBoardAPI, setErrorMessage, setIsWorking, messagePrompt],
+  );
+
   // Callback to handle the taking down of a message. Again, we simply invoke the `takeDown` method
   // of the `DeployedBBoardAPI` instance.
   const onDeleteMessage = useCallback(async () => {
@@ -245,7 +265,7 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
                   title="Post message"
                   data-testid="board-post-message-btn"
                   disabled={boardState?.state === STATE.occupied || !messagePrompt?.length}
-                  onClick={onPostMessage}
+                  onClick={() => onVote(false)}
                 >
                   <WriteIcon />
                 </IconButton>
@@ -255,7 +275,7 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
                   disabled={
                     boardState?.state === STATE.vacant || (boardState?.state === STATE.occupied && !boardState.isOwner)
                   }
-                  onClick={onDeleteMessage}
+                  onClick={() => onVote(true)}
                 >
                   <DeleteIcon />
                 </IconButton>
