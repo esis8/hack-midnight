@@ -52,12 +52,13 @@ export const EmptyCardContent: React.FC<Readonly<EmptyCardContentProps>> = ({
   return (
     <>
       <CardContent>
-        <Stack spacing={1}>
-          <Button variant="contained" color="primary" onClick={onCreateBoardCallback} data-testid="create-board-btn">
-            Create board
+        <p>Create a new proposal or join an existing one.</p>
+          <Stack spacing={1}>
+            <Button variant="contained" color="primary" onClick={onCreateBoardCallback} data-testid="deploy-board-btn">
+            Create
           </Button>
-          <Button variant="outlined" color="primary" onClick={onOpenJoin} data-testid="join-board-btn">
-            Join by address
+            <Button variant="outlined" color="primary" onClick={onOpenJoin} data-testid="join-board-btn">
+            Search
           </Button>
 
           {known.length > 0 && (
@@ -85,16 +86,10 @@ export const EmptyCardContent: React.FC<Readonly<EmptyCardContentProps>> = ({
                       >
                         {title} — {shortAddr(addr)}
                       </Button>
-                      <Button variant="outlined" color="inherit" size="small" onClick={() => ctx.removeKnownBoard(addr)}>
-                        Remove
-                      </Button>
                     </Stack>
                   );
                 })}
               </Stack>
-              <Button variant="text" color="inherit" size="small" onClick={() => ctx.clearKnownBoards()}>
-                Clear list
-              </Button>
             </>
           )}
         </Stack>
