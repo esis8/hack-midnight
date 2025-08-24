@@ -1,20 +1,21 @@
 
 pragma language_version 0.17.0;
 
+import "../compact-contracts/node_modules/@openzeppelin-compact/contracts/src/access/Ownable"
+  prefix Ownable_;
 import CompactStandardLibrary;
 
 export ledger message: Maybe<Opaque<"string">>;
-export ledger trueVotes: Counter;
-export ledger falseVotes: Counter;
-export ledger poster: Bytes<32>;
+export ledger poster: Either<ZswapCoinPublicKey, ContractAddress>;
 export ledger title: Maybe<Opaque<"string">>;
 
-constructor() {
+constructor(
+    initialOwner: Either<ZswapCoinPublicKey, ContractAddress>
+) {
+    Ownable_initialize(initialOwner);
     message = none<Opaque<"string">>();
     title = none<Opaque<"string">>();
-    poster = pad(32, "");
-    trueVotes.increment(0);
-    falseVotes.increment(0);
+    poster = disclose(initialOwner);
 }
 
 witness localSecretKey(): Bytes<32>;
@@ -29,10 +30,14 @@ export circuit vote(value: Boolean): [] {
   countBoolean(value);
 }
 
+export circuit owner(): Either<ZswapCoinPublicKey, ContractAddress> {
+  return Ownable_owner();
+}
+
 export circuit setPublishOne(newTitle: Opaque<"string">, newMessage: Opaque<"string">): [] {
     assert(!title.is_some && !message.is_some, "Already published");
-    const pub = disclose(publicKey(localSecretKey(), pad(32, "bboard:publish")));
-    poster = pub;
+    Ownable_assertOnlyOwner();
+
     title = some<Opaque<"string">>(disclose(newTitle));
     message = some<Opaque<"string">>(disclose(newMessage));
 }

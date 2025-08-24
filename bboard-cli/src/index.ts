@@ -184,13 +184,12 @@ const displayDerivedState = (ledgerState: BBoardDerivedState | undefined, logger
 const MAIN_LOOP_QUESTION = `
 You can do one of the following:
   1. Post a message
-  2. Take down your message
-  3. Display the current ledger state (known by everyone)
-  4. Display the current private state (known only to this DApp instance)
-  5. Display the current derived state (known only to this DApp instance)
-  6. Vote true
-  7. Vote false
-  8. Exit
+  2. Display the current ledger state (known by everyone)
+  3. Display the current private state (known only to this DApp instance)
+  4. Display the current derived state (known only to this DApp instance)
+  5. Vote true
+  6. Vote false
+  7. Exit
 Which would you like to do? `;
 
 const mainLoop = async (providers: BBoardProviders, rli: Interface, logger: Logger): Promise<void> => {
@@ -209,28 +208,25 @@ const mainLoop = async (providers: BBoardProviders, rli: Interface, logger: Logg
       switch (choice) {
         case '1': {
           const message = await rli.question(`What message do you want to post? `);
-          await bboardApi.post(message);
+          await bboardApi.setPublishOne(message, message);
           break;
         }
         case '2':
-          await bboardApi.takeDown();
-          break;
-        case '3':
           await displayLedgerState(providers, bboardApi.deployedContract, logger);
           break;
-        case '4':
+        case '3':
           await displayPrivateState(providers, logger);
           break;
-        case '5':
+        case '4':
           displayDerivedState(currentState, logger);
           break;
-        case '6':
+        case '5':
           await bboardApi.vote(true);
           break;
-        case '7':
+        case '6':
           await bboardApi.vote(false);
           break;
-        case '8':
+        case '7':
           logger.info('Exiting...');
           return;
         default:

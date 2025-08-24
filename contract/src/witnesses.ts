@@ -2,24 +2,16 @@ import { Ledger } from "./managed/bboard/contract/index.cjs";
 import { WitnessContext } from "@midnight-ntwrk/compact-runtime";
 
 export type BBoardPrivateState = {
-  readonly secretKey: Uint8Array;
   readonly trueCount: bigint;
   readonly falseCount: bigint;
 };
 
-export const createBBoardPrivateState = (secretKey: Uint8Array) => ({
-  secretKey,
+export const createBBoardPrivateState = () => ({
   trueCount: 0n,
   falseCount: 0n,
 });
 
 export const witnesses = {
-  localSecretKey: ({
-    privateState,
-  }: WitnessContext<Ledger, BBoardPrivateState>): [
-    BBoardPrivateState,
-    Uint8Array,
-  ] => [privateState, privateState.secretKey],
   countBoolean: (
     { privateState }: WitnessContext<Ledger, BBoardPrivateState>,
     value: boolean,

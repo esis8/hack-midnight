@@ -19,10 +19,8 @@ import {
   bboardPrivateStateKey,
 } from './common-types.js';
 import { type BBoardPrivateState, createBBoardPrivateState, witnesses } from '../../contract/src/index';
-import * as utils from './utils/index.js';
 import { deployContract, findDeployedContract } from '@midnight-ntwrk/midnight-js-contracts';
 import { combineLatest, map, tap, from, type Observable, shareReplay } from 'rxjs';
-import { toHex } from '@midnight-ntwrk/midnight-js-utils';
 
 /** @internal */
 const bboardContractInstance: BBoardContract = new Contract(witnesses);
@@ -85,7 +83,6 @@ export class BBoardAPI implements DeployedBBoardAPI {
       tap((privateState) =>
         logger?.trace({
           privateStateLoaded: {
-            secretKey: toHex(privateState.secretKey),
             trueCount: privateState.trueCount,
             falseCount: privateState.falseCount,
           },
@@ -132,10 +129,21 @@ export class BBoardAPI implements DeployedBBoardAPI {
   static async deploy(providers: BBoardProviders, logger?: Logger): Promise<BBoardAPI> {
     logger?.info('deployContract');
 
+    const initialOwner = providers.walletProvider.coinPublicKey;
+    function hexToBytes(hex: string): Uint8Array {
+      return Uint8Array.from(Buffer.from(hex, 'hex'));
+    }
+    const recipient = {
+      is_left: true,
+      left: { bytes: hexToBytes(initialOwner) },
+      right: { bytes: new Uint8Array(0) },
+    };
     const deployedBBoardContract = await deployContract<typeof bboardContractInstance>(providers, {
       privateStateId: bboardPrivateStateKey,
       contract: bboardContractInstance,
       initialPrivateState: await BBoardAPI.getPrivateState(providers),
+      args: [recipient],
+      // Este argumento se pasa al constructor Compact
     });
 
     logger?.trace({ contractDeployed: { finalizedDeployTxData: deployedBBoardContract.deployTxData.public } });
@@ -158,7 +166,7 @@ export class BBoardAPI implements DeployedBBoardAPI {
 
   private static async getPrivateState(providers: BBoardProviders): Promise<BBoardPrivateState> {
     const existingPrivateState = await providers.privateStateProvider.get(bboardPrivateStateKey);
-    return existingPrivateState ?? createBBoardPrivateState(utils.randomBytes(32));
+    return existingPrivateState ?? createBBoardPrivateState();
   }
 }
 

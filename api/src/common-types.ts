@@ -59,3 +59,7 @@ export type BBoardDerivedState = {
   readonly message: string | undefined;
   readonly title: string | undefined;
 };
+
+export type DeployContractOptionsWithPrivateState = {
+  readonly initialOwner: string;
+};
