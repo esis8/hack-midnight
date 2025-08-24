@@ -34,7 +34,7 @@ import {
 import { type BBoardPrivateState, createBBoardPrivateState, witnesses } from '../../contract/src/index';
 import * as utils from './utils/index.js';
 import { deployContract, findDeployedContract } from '@midnight-ntwrk/midnight-js-contracts';
-import { combineLatest, map, tap, from, type Observable } from 'rxjs';
+import { combineLatest, map, tap, from, type Observable, shareReplay } from 'rxjs';
 import { toHex } from '@midnight-ntwrk/midnight-js-utils';
 
 /** @internal */
@@ -46,6 +46,7 @@ const bboardContractInstance: BBoardContract = new Contract(witnesses);
 export interface DeployedBBoardAPI {
   readonly deployedContractAddress: ContractAddress;
   readonly state$: Observable<BBoardDerivedState>;
+  readonly private$: Observable<BBoardPrivateState>;
 
   post: (message: string) => Promise<void>;
   takeDown: () => Promise<void>;
@@ -78,6 +79,11 @@ export class BBoardAPI implements DeployedBBoardAPI {
     private readonly logger?: Logger,
   ) {
     this.deployedContractAddress = deployedContract.deployTxData.public.contractAddress;
+
+    const privateState$ = from(
+      providers.privateStateProvider.get(bboardPrivateStateKey) as Promise<BBoardPrivateState>,
+    ).pipe(shareReplay(1));
+
     this.state$ = combineLatest(
       [
         // Combine public (ledger) state with...
@@ -99,7 +105,7 @@ export class BBoardAPI implements DeployedBBoardAPI {
         //    since the private state of the bulletin board application never changes, we can query the
         //    private state once and always use the same value with `combineLatest`. In applications
         //    where the private state is expected to change, we would need to make this an `Observable`.
-        from(providers.privateStateProvider.get(bboardPrivateStateKey) as Promise<BBoardPrivateState>),
+        privateState$,
       ],
       // ...and combine them to produce the required derived state.
       (ledgerState, privateState) => {
@@ -116,6 +122,17 @@ export class BBoardAPI implements DeployedBBoardAPI {
         };
       },
     );
+    this.private$ = privateState$.pipe(
+      tap((privateState) =>
+        logger?.trace({
+          privateStateLoaded: {
+            // secretKey: toHex(privateState.secretKey),
+            trueCount: privateState.trueCount,
+            falseCount: privateState.falseCount,
+          },
+        }),
+      ),
+    );
   }
 
   /**
@@ -128,6 +145,7 @@ export class BBoardAPI implements DeployedBBoardAPI {
    * and private state data.
    */
   readonly state$: Observable<BBoardDerivedState>;
+  readonly private$: Observable<BBoardPrivateState>;
 
   /**
    * Attempts to post a given message to the bulletin board.

@@ -26,6 +26,7 @@ import {
   Skeleton,
   Typography,
   TextField,
+  Button,
 } from '@mui/material';
 import LockIcon from '@mui/icons-material/Lock';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
@@ -37,7 +38,7 @@ import { type BBoardDerivedState, type DeployedBBoardAPI } from '../../../api/sr
 import { useDeployedBoardContext } from '../hooks';
 import { type BoardDeployment } from '../contexts';
 import { type Observable } from 'rxjs';
-import { STATE } from '../../../contract/src/index';
+import { BBoardPrivateState, STATE } from '../../../contract/src/index';
 import { EmptyCardContent } from './Board.EmptyCardContent';
 
 /** The props required by the {@link Board} component. */
@@ -68,8 +69,11 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
   const [errorMessage, setErrorMessage] = useState<string>();
   const [boardState, setBoardState] = useState<BBoardDerivedState>();
   const [messagePrompt, setMessagePrompt] = useState<string>();
+  const [privateState, setPrivateState] = useState<BBoardPrivateState>();
+
   const [isWorking, setIsWorking] = useState(!!boardDeployment$);
 
+  console.log(privateState, 'sdsdsdds');
   // Two simple callbacks that call `resolve(...)` to either deploy or join a bulletin board
   // contract. Since the `DeployedBoardContext` will create a new board and update the UI, we
   // don't have to do anything further once we've called `resolve`.
@@ -99,25 +103,30 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
     }
   }, [deployedBoardAPI, setErrorMessage, setIsWorking, messagePrompt]);
 
-  const onVote = useCallback(
-    async (value: boolean) => {
-      if (!value) {
-        return;
+  const onVoteNegative = useCallback(async () => {
+    try {
+      if (deployedBoardAPI) {
+        setIsWorking(true);
+        await deployedBoardAPI.vote(false);
       }
-
-      try {
-        if (deployedBoardAPI) {
-          setIsWorking(true);
-          await deployedBoardAPI.vote(value);
-        }
-      } catch (error: unknown) {
-        setErrorMessage(error instanceof Error ? error.message : String(error));
-      } finally {
-        setIsWorking(false);
+    } catch (error: unknown) {
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsWorking(false);
+    }
+  }, [deployedBoardAPI, setErrorMessage, setIsWorking, messagePrompt]);
+  const onVotePositive = useCallback(async () => {
+    try {
+      if (deployedBoardAPI) {
+        setIsWorking(true);
+        await deployedBoardAPI.vote(true);
       }
-    },
-    [deployedBoardAPI, setErrorMessage, setIsWorking, messagePrompt],
-  );
+    } catch (error: unknown) {
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsWorking(false);
+    }
+  }, [deployedBoardAPI, setErrorMessage, setIsWorking, messagePrompt]);
 
   // Callback to handle the taking down of a message. Again, we simply invoke the `takeDown` method
   // of the `DeployedBBoardAPI` instance.
@@ -182,6 +191,33 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
     };
   }, [boardDeployment, setIsWorking, setErrorMessage, setDeployedBoardAPI]);
 
+  useEffect(() => {
+    if (!boardDeployment) {
+      return;
+    }
+    if (boardDeployment.status === 'in-progress') {
+      return;
+    }
+
+    setIsWorking(false);
+
+    if (boardDeployment.status === 'failed') {
+      setErrorMessage(
+        boardDeployment.error.message.length ? boardDeployment.error.message : 'Encountered an unexpected error.',
+      );
+      return;
+    }
+
+    // We need the board API as well as subscribing to its `state$` observable, so that we can invoke
+    // the `post` and `takeDown` methods later.
+    setDeployedBoardAPI(boardDeployment.api);
+    const subscription = boardDeployment.api.private$.subscribe(setPrivateState);
+    console.log(privateState, 'sdsdsdds');
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [boardDeployment, setIsWorking, setErrorMessage, setDeployedBoardAPI]);
+
   return (
     <Card sx={{ position: 'relative', width: 275, height: 300, minWidth: 275, minHeight: 300 }} color="primary">
       {!boardDeployment$ && (
@@ -234,6 +270,15 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
               boardState.state === STATE.occupied ? (
                 <Typography data-testid="board-posted-message" minHeight={160} color="primary">
                   {boardState.message}
+                  {' ('}
+                  <Button onClick={onVotePositive} style={{ cursor: 'pointer' }} title="Vote up">
+                    👍 {privateState?.trueCount ?? '?'}
+                  </Button>
+                  {' | '}
+                  <Button onClick={onVoteNegative} style={{ cursor: 'pointer' }} title="Vote down">
+                    👎 {privateState?.falseCount ?? '?'}
+                  </Button>
+                  {')'}
                 </Typography>
               ) : (
                 <TextField
@@ -265,7 +310,8 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
                   title="Post message"
                   data-testid="board-post-message-btn"
                   disabled={boardState?.state === STATE.occupied || !messagePrompt?.length}
-                  onClick={() => onVote(false)}
+                  //onClick={() => onVote(false)}
+                  onClick={onPostMessage}
                 >
                   <WriteIcon />
                 </IconButton>
@@ -275,7 +321,8 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
                   disabled={
                     boardState?.state === STATE.vacant || (boardState?.state === STATE.occupied && !boardState.isOwner)
                   }
-                  onClick={() => onVote(true)}
+                  // onClick={() => onVote(true)}
+                  onClick={onDeleteMessage}
                 >
                   <DeleteIcon />
                 </IconButton>

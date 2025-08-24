@@ -31,8 +31,8 @@ import { WitnessContext } from "@midnight-ntwrk/compact-runtime";
 
 export type BBoardPrivateState = {
   readonly secretKey: Uint8Array;
-  trueCount: bigint;
-  falseCount: bigint;
+  readonly trueCount: bigint;
+  readonly falseCount: bigint;
 };
 
 export const createBBoardPrivateState = (secretKey: Uint8Array) => ({
