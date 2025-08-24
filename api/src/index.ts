@@ -1,14 +1,21 @@
 import contractModule from '../../contract/src/managed/bboard/contract/index.cjs';
 const { Contract, ledger } = contractModule;
 
-// Se elimina la importación de StateValue
 import { type ContractAddress } from '@midnight-ntwrk/compact-runtime';
 import { type Logger } from 'pino';
-import { type BBoardDerivedState, type BBoardProviders } from './common-types.js';
-import { deployContract, findDeployedContract, type FoundContract } from '@midnight-ntwrk/midnight-js-contracts';
-import { map, tap, type Observable } from 'rxjs';
+import {
+  type BBoardDerivedState,
+  type BBoardProviders,
+  bboardPrivateStateKey,
+} from './common-types.js';
+import {
+  deployContract,
+  findDeployedContract,
+  type FoundContract,
+} from '@midnight-ntwrk/midnight-js-contracts';
+import { map, tap, catchError, type Observable } from 'rxjs';
 import { toHex } from '@midnight-ntwrk/midnight-js-utils';
-import { witnesses } from '../../contract/src/index.js';
+import { witnesses, createBBoardPrivateState } from '../../contract/src/index.js';
 
 const textEncoder = new TextEncoder();
 
@@ -28,73 +35,88 @@ export class BBoardAPI implements DeployedBBoardAPI {
   ) {
     this.deployedContractAddress = deployedContract.deployTxData.public.contractAddress;
 
-    const walletPubKey = providers.walletProvider.coinPublicKey; // string hex
+    const walletPubKey = providers.walletProvider.coinPublicKey; // hex string
 
     this.state$ = providers.publicDataProvider
       .contractStateObservable(this.deployedContractAddress, { type: 'latest' })
       .pipe(
-        map((contractState) => {
-          // Forzamos aridad 2 para ledgers sellados; si admite 1, JS ignora el extra.
-          const ledgerAny = ledger as any;
-          return ledgerAny(contractState.data, undefined);
-        }),
+        // Algunos bindings requieren 2 args (public, private). Pasamos undefined para el privado.
+        map((contractState) => (ledger as any)(contractState.data, undefined)),
         tap((ls) =>
           logger?.trace({
             ledgerStateChanged: {
-              owner: toHex(ls.owner.bytes),
-              title: String(ls.title),
+              owner: toHex(((ls as any).owner?.bytes ?? (ls as any).owner) as Uint8Array),
+              title: String((ls as any).title),
             },
           }),
         ),
-        map((ls) => ({
-          owner: ls.owner.bytes as Uint8Array,
-          title: String(ls.title),
-          isOwner: toHex(ls.owner.bytes) === walletPubKey,
-        })),
+        map((ls) => {
+          const ownerBytes: Uint8Array = ((ls as any).owner?.bytes ?? (ls as any).owner) as Uint8Array;
+          return {
+            owner: ownerBytes,
+            title: String((ls as any).title),
+            isOwner: toHex(ownerBytes) === walletPubKey,
+          };
+        }),
+        catchError((err) => {
+          console.error('[BBoardAPI] state$ error:', err);
+          throw err;
+        }),
       );
   }
 
   readonly deployedContractAddress: ContractAddress;
   readonly state$: Observable<BBoardDerivedState>;
 
+  private static hexToBytes(hex: string): Uint8Array {
+    const s = hex.startsWith('0x') ? hex.slice(2) : hex;
+    const out = new Uint8Array(s.length / 2);
+    for (let i = 0; i < out.length; i++) out[i] = parseInt(s.substr(i * 2, 2), 16);
+    return out;
+  }
+
+  private static async getPrivateState(providers: BBoardProviders) {
+    const existing = await providers.privateStateProvider.get(bboardPrivateStateKey);
+    if (existing) return existing;
+    const ownerPubKeyBytes = BBoardAPI.hexToBytes(providers.walletProvider.coinPublicKey);
+    return createBBoardPrivateState(ownerPubKeyBytes);
+  }
+
   static async deploy(providers: BBoardProviders, newTitle: string, logger?: Logger): Promise<BBoardAPI> {
-    logger?.info({ deployContract: { newTitle } });
+    logger?.info?.({ deployContract: { newTitle } });
 
     const deployedBBoardContract = (await deployContract<typeof bboardContractInstance>(
       providers as any,
       {
         contract: bboardContractInstance,
         constructorArgs: [textEncoder.encode(newTitle)],
+        privateStateId: bboardPrivateStateKey,
+        initialPrivateState: await BBoardAPI.getPrivateState(providers),
       } as any,
     )) as DeployedBBoardContract;
 
-    logger?.trace({
-      contractDeployed: {
-        finalizedDeployTxData: deployedBBoardContract.deployTxData.public,
-      },
+    logger?.trace?.({
+      contractDeployed: { finalizedDeployTxData: deployedBBoardContract.deployTxData.public },
     });
 
     return new BBoardAPI(deployedBBoardContract, providers, logger);
   }
 
-  /**
-   * Se une a un contrato ya desplegado.
-   */
   static async join(providers: BBoardProviders, contractAddress: ContractAddress, logger?: Logger): Promise<BBoardAPI> {
-    logger?.info({ joinContract: { contractAddress } });
+    logger?.info?.({ joinContract: { contractAddress } });
 
     const deployedBBoardContract = (await findDeployedContract<typeof bboardContractInstance>(
       providers as any,
       {
         contractAddress,
         contract: bboardContractInstance,
+        privateStateId: bboardPrivateStateKey,
+        initialPrivateState: await BBoardAPI.getPrivateState(providers),
       } as any,
     )) as DeployedBBoardContract;
 
-    logger?.trace({
-      contractJoined: {
-        finalizedDeployTxData: deployedBBoardContract.deployTxData.public,
-      },
+    logger?.trace?.({
+      contractJoined: { finalizedDeployTxData: deployedBBoardContract.deployTxData.public },
     });
 
     return new BBoardAPI(deployedBBoardContract, providers, logger);

@@ -1,4 +1,3 @@
-
 pragma language_version 0.17.0;
 
 import CompactStandardLibrary;
@@ -16,6 +15,8 @@ constructor(newTitle: Opaque<"string">) {
   title = disclose(newTitle);
 }
 
+witness localOwnerPubKey(): ZswapCoinPublicKey;
+
 export circuit info(): VoteInfo {
   return VoteInfo { owner, title };
 }
@@ -27,4 +28,3 @@ export circuit getOwner(): ZswapCoinPublicKey {
 export circuit getTitle(): Opaque<"string"> {
   return title;
 }
-
