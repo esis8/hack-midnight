@@ -232,7 +232,7 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
                       isWorking || !(titleEditValue ?? '').trim().length || !(messagePrompt ?? '').trim().length
                     }
                   >
-                    Save
+                    Create
                   </Button>
                 )}
               </div>
