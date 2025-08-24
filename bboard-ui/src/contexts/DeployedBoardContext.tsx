@@ -1,41 +1,29 @@
-// This file is part of midnightntwrk/example-counter.
-// Copyright (C) 2025 Midnight Foundation
-// SPDX-License-Identifier: Apache-2.0
-// Licensed under the Apache License, Version 2.0 (the "License");
-// You may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+import React, { createContext, useContext, type PropsWithChildren, useMemo } from 'react';
+import type { Logger } from 'pino';
+import { BrowserDeployedBoardManager, type DeployedBoardAPIProvider } from './BrowserDeployedBoardManager';
 
-import React, { type PropsWithChildren, createContext } from 'react';
-import { type DeployedBoardAPIProvider, BrowserDeployedBoardManager } from './BrowserDeployedBoardManager';
-import { type Logger } from 'pino';
-
-/**
- * Encapsulates a deployed boards provider as a context object.
- */
-export const DeployedBoardContext = createContext<DeployedBoardAPIProvider | undefined>(undefined);
-
-/**
- * The props required by the {@link DeployedBoardProvider} component.
- */
 export type DeployedBoardProviderProps = PropsWithChildren<{
-  /** The `pino` logger to use. */
   logger: Logger;
+  networkId: string;
 }>;
 
-/**
- * A React component that sets a new {@link BrowserDeployedBoardManager} object as the currently
- * in-scope deployed board provider.
- */
-export const DeployedBoardProvider: React.FC<Readonly<DeployedBoardProviderProps>> = ({ logger, children }) => (
-  <DeployedBoardContext.Provider value={new BrowserDeployedBoardManager(logger)}>
-    {children}
-  </DeployedBoardContext.Provider>
-);
+// Exporta el contexto para que pueda ser usado por el hook
+export const DeployedBoardContext = createContext<DeployedBoardAPIProvider | undefined>(undefined);
+
+export const DeployedBoardProvider: React.FC<Readonly<DeployedBoardProviderProps>> = ({
+  logger,
+  networkId,
+  children,
+}) => {
+  const value = useMemo(() => new BrowserDeployedBoardManager(logger, networkId), [logger, networkId]);
+  return <DeployedBoardContext.Provider value={value}>{children}</DeployedBoardContext.Provider>;
+};
+
+// (opcional) Hook local si lo quieres usar directamente desde aquí
+export const useDeployedBoardAPIProvider = (): DeployedBoardAPIProvider => {
+  const ctx = useContext(DeployedBoardContext);
+  if (!ctx) throw new Error('A <DeployedBoardProvider /> is required.');
+  return ctx;
+};
+
+export type { DeployedBoardAPIProvider };
