@@ -58,7 +58,7 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
     }
   }, [deployedBoardAPI]);
 
-    const onVote = useCallback(
+  const onVote = useCallback(
     async (choice: boolean) => {
       try {
         if (!deployedBoardAPI) return;
@@ -168,7 +168,7 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
 
           <CardHeader
             titleTypographyProps={{ color: 'primary' }}
-            title={boardState ? boardState.title ?? 'Loading…' : 'Loading…'}
+            title={boardState ? (boardState.title ?? 'Loading…') : 'Loading…'}
             subheader={toShortFormatContractAddress(deployedBoardAPI?.deployedContractAddress) ?? undefined}
             action={
               deployedBoardAPI?.deployedContractAddress ? (
@@ -238,14 +238,14 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
                 <Typography data-testid="board-posted-message" minHeight={240} color="primary">
                   {boardState.message}
                   {' ('}
-                   <Button
+                  <Button
                     onClick={() => onVote(true)}
                     style={{ cursor: 'pointer' }}
                     title="Vote up"
                     disabled={isWorking || !deployedBoardAPI}
                     data-testid="vote-up-btn"
                   >
-                    👍 {boardState ? String(boardState.trueVotes) : '?'}
+                    👍 {boardState ? String(privateState?.trueCount) : '?'}
                   </Button>
                   {' | '}
                   <Button
@@ -255,7 +255,7 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
                     disabled={isWorking || !deployedBoardAPI}
                     data-testid="vote-down-btn"
                   >
-                    👎 {boardState ? String(boardState.falseVotes) : '?'}
+                    👎 {boardState ? String(privateState?.falseCount) : '?'}
                   </Button>
                   {')'}
                 </Typography>
