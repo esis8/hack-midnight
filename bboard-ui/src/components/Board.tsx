@@ -19,7 +19,7 @@ import { type BBoardDerivedState, type DeployedBBoardAPI } from '../../../api/sr
 import { useDeployedBoardContext } from '../hooks';
 import { type BoardDeployment } from '../contexts';
 import { type Observable } from 'rxjs';
-import { BBoardPrivateState } from '../../../contract/src/index';
+import { BBoardPrivateState, State } from '../../../contract/src/index';
 import { EmptyCardContent } from './Board.EmptyCardContent';
 
 /** The props required by the {@link Board} component. */
@@ -270,6 +270,18 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
                     >
                       👎 {boardState ? String(privateState?.falseCount) : '?'}
                     </Button>
+                    {boardState.result && (
+                      <span style={{ alignSelf: 'center', fontWeight: 600, color: '#aaa' }}>
+                        Result:{' '}
+                        {(boardState.result as State) === 0
+                          ? 'Approved'
+                          : boardState.result === State.DISAPPROVED
+                            ? 'Disapproved'
+                            : boardState.result === State.DRAW
+                              ? 'Draw'
+                              : boardState.result}
+                      </span>
+                    )}
                   </div>
                 </Typography>
               )

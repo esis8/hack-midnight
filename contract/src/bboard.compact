@@ -5,9 +5,17 @@ import "../compact-contracts/node_modules/@openzeppelin-compact/contracts/src/ac
   prefix Ownable_;
 import CompactStandardLibrary;
 
+export enum State {
+  APPROVED,
+  DISAPPROVED,
+  DRAW,
+}
+
 export ledger message: Maybe<Opaque<"string">>;
 // export ledger poster: Either<ZswapCoinPublicKey, ContractAddress>;
 export ledger poster: Bytes<32>;
+export ledger result: State;
+
 export ledger title: Maybe<Opaque<"string">>;
 
 constructor(
@@ -16,19 +24,26 @@ constructor(
     // Ownable_initialize(initialOwner);
     message = none<Opaque<"string">>();
     title = none<Opaque<"string">>();
+    result = State.DRAW;
     //  poster = disclose(initialOwner);
     poster = pad(32, "");
 }
 
 witness countBoolean(value: Boolean): Uint<64>;
+witness getResult(): State;
 
 // Circuito para votar según el booleano
 export circuit vote(value: Boolean): [] {
   countBoolean(value);
+  postResult();
 }
 
 export circuit owner(): Either<ZswapCoinPublicKey, ContractAddress> {
   return Ownable_owner();
+}
+
+export circuit postResult() : [] {
+  result = disclose(getResult());
 }
 
 export circuit setPublishOne(newTitle: Opaque<"string">, newMessage: Opaque<"string">): [] {

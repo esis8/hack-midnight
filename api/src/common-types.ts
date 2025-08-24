@@ -10,7 +10,7 @@
 
 import { type MidnightProviders } from '@midnight-ntwrk/midnight-js-types';
 import { type FoundContract } from '@midnight-ntwrk/midnight-js-contracts';
-import type { BBoardPrivateState, Contract, Witnesses } from '../../contract/src/index';
+import type { BBoardPrivateState, Contract, State, Witnesses } from '../../contract/src/index';
 
 export const bboardPrivateStateKey = 'bboardPrivateState';
 export type PrivateStateId = typeof bboardPrivateStateKey;
@@ -58,4 +58,5 @@ export type DeployedBBoardContract = FoundContract<BBoardContract>;
 export type BBoardDerivedState = {
   readonly message: string | undefined;
   readonly title: string | undefined;
+  readonly result: State;
 };

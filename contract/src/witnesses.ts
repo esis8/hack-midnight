@@ -1,14 +1,16 @@
-import { Ledger } from "./managed/bboard/contract/index.cjs";
+import { Ledger, State } from "./managed/bboard/contract/index.cjs";
 import { WitnessContext } from "@midnight-ntwrk/compact-runtime";
 
 export type BBoardPrivateState = {
   readonly trueCount: bigint;
   readonly falseCount: bigint;
+  readonly result: State;
 };
 
 export const createBBoardPrivateState = () => ({
   trueCount: 0n,
   falseCount: 0n,
+  result: State.DRAW,
 });
 
 export const witnesses = {
@@ -23,10 +25,21 @@ export const witnesses = {
     // Devuelve el nuevo estado y el contador actualizado
     return [newState, value ? newState.trueCount : newState.falseCount];
   },
-  getVotes: ({
+  getResult: ({
     privateState,
   }: WitnessContext<Ledger, BBoardPrivateState>): [
     BBoardPrivateState,
-    [bigint, bigint],
-  ] => [privateState, [privateState.trueCount, privateState.falseCount]],
+    State,
+  ] => {
+    let newResult: State;
+    if (privateState.trueCount > privateState.falseCount) {
+      newResult = State.APPROVED;
+    } else if (privateState.trueCount < privateState.falseCount) {
+      newResult = State.DISAPPROVED;
+    } else {
+      newResult = State.DRAW;
+    }
+    const newState = { ...privateState, result: newResult };
+    return [newState, newResult];
+  },
 };

@@ -21,12 +21,12 @@ import {
 import { type BBoardPrivateState, createBBoardPrivateState, witnesses } from '../../contract/src/index';
 import { deployContract, findDeployedContract } from '@midnight-ntwrk/midnight-js-contracts';
 import { combineLatest, map, tap, from, type Observable, shareReplay } from 'rxjs';
-import {
-  // createEitherTestUser,
-  encodeToPK,
-  encodeToAddress,
-  toHexPadded,
-} from '../../contract/compact-contracts/contracts/src/token/test/utils/address';
+// import {
+//   // createEitherTestUser,
+//   encodeToPK,
+//   encodeToAddress,
+//   toHexPadded,
+// } from '../../contract/compact-contracts/contracts/src/token/test/utils/address';
 /** @internal */
 const bboardContractInstance: BBoardContract = new Contract(witnesses);
 
@@ -40,6 +40,7 @@ export interface DeployedBBoardAPI {
 
   vote(value: boolean): Promise<void>;
   setPublishOne(title: string, message: string): Promise<void>;
+  postResult(): Promise<void>;
 }
 
 /**
@@ -69,6 +70,7 @@ export class BBoardAPI implements DeployedBBoardAPI {
               ledgerState: {
                 title: ledgerState.title.value,
                 message: ledgerState.message.value,
+                result: ledgerState.result,
               },
             },
           }),
@@ -80,6 +82,7 @@ export class BBoardAPI implements DeployedBBoardAPI {
         return {
           message: ledgerState.message.value,
           title: ledgerState.title.value,
+          result: ledgerState.result,
         } as BBoardDerivedState;
       }),
     );
@@ -122,6 +125,17 @@ export class BBoardAPI implements DeployedBBoardAPI {
     this.logger?.trace({
       transactionAdded: {
         circuit: 'setPublishOne',
+        txHash: txData.public.txHash,
+        blockHeight: txData.public.blockHeight,
+      },
+    });
+  }
+
+  async postResult(): Promise<void> {
+    const txData = await this.deployedContract.callTx.postResult();
+    this.logger?.trace({
+      transactionAdded: {
+        circuit: 'postResult',
         txHash: txData.public.txHash,
         blockHeight: txData.public.blockHeight,
       },
