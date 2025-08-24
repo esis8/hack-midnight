@@ -19,14 +19,12 @@ import DeleteIcon from '@mui/icons-material/DeleteOutlined';
 import WriteIcon from '@mui/icons-material/EditNoteOutlined';
 import CopyIcon from '@mui/icons-material/ContentPasteOutlined';
 import StopIcon from '@mui/icons-material/HighlightOffOutlined';
-import RenameIcon from '@mui/icons-material/DriveFileRenameOutlineOutlined';
 import { type BBoardDerivedState, type DeployedBBoardAPI } from '../../../api/src/index';
 import { useDeployedBoardContext } from '../hooks';
 import { type BoardDeployment } from '../contexts';
 import { type Observable } from 'rxjs';
 import { BBoardPrivateState, STATE } from '../../../contract/src/index';
 import { EmptyCardContent } from './Board.EmptyCardContent';
-import { TitleDialog } from './TitleDialog';
 
 /** The props required by the {@link Board} component. */
 export interface BoardProps {
@@ -49,8 +47,8 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
 
   const [isWorking, setIsWorking] = useState(!!boardDeployment$);
 
-  // Dialog for setting/claiming title
-  const [isTitleDialogOpen, setIsTitleDialogOpen] = useState(false);
+  // Inline title editor state
+  const [titleEditValue, setTitleEditValue] = useState<string>('');
 
   // Two simple callbacks that call `resolve(...)` to either deploy or join a bulletin board
   const onCreateBoard = useCallback(() => boardApiProvider.resolve(), [boardApiProvider]);
@@ -85,6 +83,7 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
       setIsWorking(false);
     }
   }, [deployedBoardAPI, setErrorMessage, setIsWorking]);
+
   const onVotePositive = useCallback(async () => {
     try {
       if (deployedBoardAPI) {
@@ -118,32 +117,29 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
   }, [deployedBoardAPI]);
 
   // Helpers for title ownership logic
-  const isOwnerUninitialized = (ownerHex?: string): boolean => (ownerHex ? /^0x0+$/i.test(ownerHex) : false);
+  const ZERO32 = ('0x' + '00'.repeat(32)).toLowerCase();
+  const isOwnerUninitialized = (ownerHex?: string): boolean => (ownerHex ?? '').toLowerCase() === ZERO32;
+  const canEditTitle = !!boardState && (isOwnerUninitialized(boardState.ownerHex) || boardState.isBoardOwner);
 
-  const onOpenTitleDialog = useCallback(() => {
-    setIsTitleDialogOpen(true);
-  }, []);
+  // Submit inline title
+  const onSaveTitle = useCallback(async () => {
+    try {
+      if (!deployedBoardAPI || !boardState) return;
+      const trimmed = (titleEditValue ?? '').trim();
+      if (!trimmed.length) return;
 
-  const onSubmitTitleDialog = useCallback(
-    async (title: string) => {
-      try {
-        if (!deployedBoardAPI || !boardState) return;
-        setIsWorking(true);
-
-        if (isOwnerUninitialized(boardState.ownerHex)) {
-          await deployedBoardAPI.claimOwnershipAndSetTitle(title);
-        } else if (boardState.isBoardOwner) {
-          await deployedBoardAPI.setTitle(title);
-        }
-      } catch (error: unknown) {
-        setErrorMessage(error instanceof Error ? error.message : String(error));
-      } finally {
-        setIsWorking(false);
-        setIsTitleDialogOpen(false);
+      setIsWorking(true);
+      if (isOwnerUninitialized(boardState.ownerHex)) {
+        await deployedBoardAPI.claimOwnershipAndSetTitle(trimmed);
+      } else if (boardState.isBoardOwner) {
+        await deployedBoardAPI.setTitle(trimmed);
       }
-    },
-    [deployedBoardAPI, boardState, setIsWorking],
-  );
+    } catch (error: unknown) {
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsWorking(false);
+    }
+  }, [deployedBoardAPI, boardState, titleEditValue, setIsWorking]);
 
   // Subscriptions to deployment/state/private
   useEffect(() => {
@@ -188,8 +184,16 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
     return () => subscription.unsubscribe();
   }, [boardDeployment, setIsWorking, setErrorMessage, setDeployedBoardAPI]);
 
+  // Keep local title input in sync with ledger
+  useEffect(() => {
+    setTitleEditValue(boardState?.title ?? '');
+  }, [boardState?.title]);
+
   return (
-    <Card sx={{ position: 'relative', width: 275, height: 300, minWidth: 275, minHeight: 300 }} color="primary">
+    <Card
+      sx={{ position: 'relative', width: 420, height: 420, minWidth: 420, minHeight: 420 }}
+      color="primary"
+    >
       {!boardDeployment$ && (
         <EmptyCardContent onCreateBoardCallback={onCreateBoard} onJoinBoardCallback={onJoinBoard} />
       )}
@@ -235,30 +239,49 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
                 ) : (
                   <Skeleton variant="circular" width={20} height={20} />
                 )}
-                {boardState ? (
-                  <IconButton
-                    title={
-                      isOwnerUninitialized(boardState.ownerHex)
-                        ? 'Claim ownership and set title'
-                        : boardState.isBoardOwner
-                        ? 'Change title'
-                        : 'Title can only be changed by the board owner'
-                    }
-                    onClick={onOpenTitleDialog}
-                    disabled={!isOwnerUninitialized(boardState.ownerHex) && !boardState.isBoardOwner}
-                  >
-                    <RenameIcon fontSize="small" />
-                  </IconButton>
-                ) : (
-                  <Skeleton variant="circular" width={20} height={20} />
-                )}
               </React.Fragment>
             }
           />
           <CardContent>
+            {/* Inline title editor */}
+            {boardState ? (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+                <TextField
+                  fullWidth
+                  label="Board title"
+                  value={titleEditValue}
+                  onChange={(e) => setTitleEditValue(e.target.value)}
+                  size="small"
+                  color="primary"
+                  inputProps={{ 'data-testid': 'board-title-input', style: { color: 'black' } }}
+                  placeholder={
+                    isOwnerUninitialized(boardState.ownerHex) ? 'Set a title and claim ownership' : 'Change board title'
+                  }
+                  disabled={!canEditTitle || isWorking}
+                />
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={onSaveTitle}
+                  data-testid="board-title-save-btn"
+                  disabled={
+                    !canEditTitle ||
+                    isWorking ||
+                    !(titleEditValue ?? '').trim().length ||
+                    (boardState.title ?? '') === (titleEditValue ?? '').trim()
+                  }
+                >
+                  Save
+                </Button>
+              </div>
+            ) : (
+              <Skeleton variant="rectangular" width={380} height={44} style={{ marginBottom: 12 }} />
+            )}
+
+            {/* Message area */}
             {boardState ? (
               boardState.state === STATE.occupied ? (
-                <Typography data-testid="board-posted-message" minHeight={160} color="primary">
+                <Typography data-testid="board-posted-message" minHeight={240} color="primary">
                   {boardState.message}
                   {' ('}
                   <Button onClick={onVotePositive} style={{ cursor: 'pointer' }} title="Vote up">
@@ -278,8 +301,8 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
                   focused
                   fullWidth
                   multiline
-                  minRows={6}
-                  maxRows={6}
+                  minRows={10}
+                  maxRows={10}
                   placeholder="Message to post"
                   size="small"
                   color="primary"
@@ -290,7 +313,7 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
                 />
               )
             ) : (
-              <Skeleton variant="rectangular" width={245} height={160} />
+              <Skeleton variant="rectangular" width={380} height={240} />
             )}
           </CardContent>
           <CardActions>
@@ -319,14 +342,6 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
               <Skeleton variant="rectangular" width={80} height={20} />
             )}
           </CardActions>
-
-          <TitleDialog
-            open={isTitleDialogOpen}
-            title={isOwnerUninitialized(boardState?.ownerHex) ? 'Set board title' : 'Change board title'}
-            initialValue={boardState?.title ?? ''}
-            onCancel={() => setIsTitleDialogOpen(false)}
-            onSubmit={onSubmitTitleDialog}
-          />
         </React.Fragment>
       )}
     </Card>
