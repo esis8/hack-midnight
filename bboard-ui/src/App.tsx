@@ -1,18 +1,3 @@
-// This file is part of midnightntwrk/example-counter.
-// Copyright (C) 2025 Midnight Foundation
-// SPDX-License-Identifier: Apache-2.0
-// Licensed under the Apache License, Version 2.0 (the "License");
-// You may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 import React, { useEffect, useState } from 'react';
 import { Box } from '@mui/material';
 import { Board, MainLayout } from './components';
@@ -20,38 +5,42 @@ import { useDeployedBoardContext } from './hooks';
 import { type BoardDeployment } from './contexts';
 import { type Observable } from 'rxjs';
 
-/**
- * The root bulletin board application component.
- *
- * @remarks
- * The {@link App} component requires a `<DeployedBoardProvider />` parent in order to retrieve
- * information about current bulletin board deployments.
- *
- * @internal
- */
+
 const App: React.FC = () => {
-  const boardApiProvider = useDeployedBoardContext();
-  const [boardDeployments, setBoardDeployments] = useState<Array<Observable<BoardDeployment>>>([]);
+  const provider = useDeployedBoardContext();
+  const [selectedDeployment$, setSelectedDeployment$] = useState<Observable<BoardDeployment> | undefined>(undefined);
 
-  useEffect(() => {
-    const subscription = boardApiProvider.boardDeployments$.subscribe(setBoardDeployments);
+ useEffect(() => {
+    const sub = provider.knownBoards$.subscribe((addrs) => {
+      if (!selectedDeployment$ && addrs.length > 0) {
+        setSelectedDeployment$(provider.resolve(addrs[0]));
+      }
+    });
+    return () => sub.unsubscribe();
+  }, [provider, selectedDeployment$]);
 
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [boardApiProvider]);
+    useEffect(() => {
+    const sub = provider.boardDeployments$.subscribe((list) => {
+      if (list.length === 0) return;
+      const last = list[list.length - 1];
+      if (selectedDeployment$ !== last) {
+        setSelectedDeployment$(last);
+      }
+    });
+    return () => sub.unsubscribe();
+  }, [provider, selectedDeployment$]);
 
   return (
     <Box sx={{ background: '#000', minHeight: '100vh' }}>
       <MainLayout>
-        {boardDeployments.map((boardDeployment, idx) => (
-          <div data-testid={`board-${idx}`} key={`board-${idx}`}>
-            <Board boardDeployment$={boardDeployment} />
-          </div>
-        ))}
         <div data-testid="board-start">
           <Board />
         </div>
+            {selectedDeployment$ ? (
+            <Board boardDeployment$={selectedDeployment$} />
+          ) : (
+            <Board />
+          )}
       </MainLayout>
     </Box>
   );
