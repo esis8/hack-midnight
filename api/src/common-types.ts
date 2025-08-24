@@ -56,7 +56,8 @@ export type DeployedBBoardContract = FoundContract<BBoardContract>;
  * A type that represents the derived combination of public (or ledger), and private state.
  */
 export type BBoardDerivedState = {
-  readonly instance: bigint;
   readonly message: string | undefined;
   readonly title: string | undefined;
+  readonly trueVotes: bigint;
+  readonly falseVotes: bigint;
 };

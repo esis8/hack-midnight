@@ -35,8 +35,6 @@ export interface DeployedBBoardAPI {
   readonly private$: Observable<BBoardPrivateState>;
 
   vote(value: boolean): Promise<void>;
-  debugCounts(): Promise<[bigint, bigint]>;
-
   setPublishOne(title: string, message: string): Promise<void>;
 }
 
@@ -57,31 +55,32 @@ export class BBoardAPI implements DeployedBBoardAPI {
       providers.privateStateProvider.get(bboardPrivateStateKey) as Promise<BBoardPrivateState>,
     ).pipe(shareReplay(1));
 
-    const ledger$ = providers.publicDataProvider.contractStateObservable(this.deployedContractAddress, { type: 'latest' }).pipe(
-      map((contractState) => ledger(contractState.data)),
-      tap((ledgerState) =>
-        logger?.trace({
-          ledgerStateChanged: {
-            ledgerState: {
-              // Log keys present in ledger
-              instance: ledgerState.instance,
-              title: ledgerState.title.value,
-              message: ledgerState.message.value,
-            },
-          },
-        }),
-      ),
-    );
-
-    this.state$ = combineLatest([ledger$, privateState$]).pipe(
-      map(([ledgerState]) => {
-        return {
-          instance: ledgerState.instance,
-          message: ledgerState.message.value,
+const ledger$ = providers.publicDataProvider.contractStateObservable(this.deployedContractAddress, { type: 'latest' }).pipe(
+  map((contractState) => ledger(contractState.data)),
+  tap((ledgerState) =>
+    logger?.trace({
+      ledgerStateChanged: {
+        ledgerState: {
           title: ledgerState.title.value,
-        } as BBoardDerivedState;
-      }),
-    );
+          message: ledgerState.message.value,
+          trueVotes: ledgerState.trueVotes,
+          falseVotes: ledgerState.falseVotes,
+        },
+      },
+    }),
+  ),
+);
+
+this.state$ = combineLatest([ledger$, privateState$]).pipe(
+  map(([ledgerState]) => {
+    return {
+      message: ledgerState.message.value,
+      title: ledgerState.title.value,
+      trueVotes: ledgerState.trueVotes ?? 0n,
+      falseVotes: ledgerState.falseVotes ?? 0n,
+    } as BBoardDerivedState;
+  }),
+);
 
     this.private$ = privateState$.pipe(
       tap((privateState) =>
@@ -106,15 +105,6 @@ export class BBoardAPI implements DeployedBBoardAPI {
    */
   readonly state$: Observable<BBoardDerivedState>;
   readonly private$: Observable<BBoardPrivateState>;
-
-  async debugCounts(): Promise<[bigint, bigint]> {
-    this.logger?.info('debugCounts');
-    const result = await this.deployedContract.callTx.debugInfo();
-    this.logger?.trace({
-      debugCounts: { trueCount: result.private.result[0], falseCount: result.private.result[1] },
-    });
-    return result.private.result;
-  }
 
   async vote(value: boolean): Promise<void> {
     this.logger?.info(`vote: ${value}`);

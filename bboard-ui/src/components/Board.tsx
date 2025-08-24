@@ -58,6 +58,21 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
     }
   }, [deployedBoardAPI]);
 
+    const onVote = useCallback(
+    async (choice: boolean) => {
+      try {
+        if (!deployedBoardAPI) return;
+        setIsWorking(true);
+        await deployedBoardAPI.vote(choice);
+      } catch (error: unknown) {
+        setErrorMessage(error instanceof Error ? error.message : String(error));
+      } finally {
+        setIsWorking(false);
+      }
+    },
+    [deployedBoardAPI],
+  );
+
   // Se puede publicar si todavía no existe título ni mensaje en el ledger
   const canPublish = !!boardState && !boardState.title && !boardState.message;
 
@@ -223,12 +238,24 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
                 <Typography data-testid="board-posted-message" minHeight={240} color="primary">
                   {boardState.message}
                   {' ('}
-                  <Button onClick={() => deployedBoardAPI?.vote(true)} style={{ cursor: 'pointer' }} title="Vote up">
-                    👍 {privateState?.trueCount ?? '?'}
+                   <Button
+                    onClick={() => onVote(true)}
+                    style={{ cursor: 'pointer' }}
+                    title="Vote up"
+                    disabled={isWorking || !deployedBoardAPI}
+                    data-testid="vote-up-btn"
+                  >
+                    👍 {boardState ? String(boardState.trueVotes) : '?'}
                   </Button>
                   {' | '}
-                  <Button onClick={() => deployedBoardAPI?.vote(false)} style={{ cursor: 'pointer' }} title="Vote down">
-                    👎 {privateState?.falseCount ?? '?'}
+                  <Button
+                    onClick={() => onVote(false)}
+                    style={{ cursor: 'pointer' }}
+                    title="Vote down"
+                    disabled={isWorking || !deployedBoardAPI}
+                    data-testid="vote-down-btn"
+                  >
+                    👎 {boardState ? String(boardState.falseVotes) : '?'}
                   </Button>
                   {')'}
                 </Typography>
