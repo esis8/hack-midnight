@@ -1,25 +1,20 @@
 // This file is part of midnightntwrk/example-counter.
 // Copyright (C) 2025 Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
-// Licensed under the Apache License, Version 2.0 (the "License");
-// You may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Licensed under the Apache License, Version 2.0
 
 import React, { useState } from 'react';
+import {
+  Button,
+  CardActions,
+  CardContent,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  TextField,
+} from '@mui/material';
 import { type ContractAddress } from '@midnight-ntwrk/compact-runtime';
-import { CardActions, CardContent, IconButton, Tooltip, Typography } from '@mui/material';
-import BoardAddIcon from '@mui/icons-material/PostAddOutlined';
-import CreateBoardIcon from '@mui/icons-material/AddCircleOutlined';
-import JoinBoardIcon from '@mui/icons-material/AddLinkOutlined';
-import { TextPromptDialog } from './TextPromptDialog';
 
 /**
  * The props required by the {@link EmptyCardContent} component.
@@ -43,45 +38,53 @@ export const EmptyCardContent: React.FC<Readonly<EmptyCardContentProps>> = ({
   onJoinBoardCallback,
 }) => {
   const [textPromptOpen, setTextPromptOpen] = useState(false);
+  const [address, setAddress] = useState('');
+
+  const onOpenJoin = () => setTextPromptOpen(true);
+  const onCloseJoin = () => setTextPromptOpen(false);
+  const onConfirmJoin = () => {
+    const trimmed = address.trim();
+    if (trimmed.length) {
+      onJoinBoardCallback(trimmed as ContractAddress);
+      setTextPromptOpen(false);
+    }
+  };
 
   return (
-    <React.Fragment>
+    <>
       <CardContent>
-        <Typography align="center" variant="h1" color="primary.dark">
-          <BoardAddIcon fontSize="large" />
-        </Typography>
-        <Typography data-testid="board-posted-message" align="center" variant="body2" color="primary.dark">
-          Create a new Board, or join an existing one...
-        </Typography>
+        <p>Deploy a new board or join an existing one.</p>
       </CardContent>
-      <CardActions disableSpacing sx={{ justifyContent: 'center' }}>
-        <Tooltip title="Create a new board">
-          <IconButton data-testid="board-deploy-btn" onClick={onCreateBoardCallback}>
-            <CreateBoardIcon />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="Join an existing board">
-          <IconButton
-            data-testid="board-join-btn"
-            onClick={() => {
-              setTextPromptOpen(true);
-            }}
-          >
-            <JoinBoardIcon />
-          </IconButton>
-        </Tooltip>
+      <CardActions>
+        <Button variant="contained" color="primary" onClick={onCreateBoardCallback} data-testid="deploy-board-btn">
+          Create board
+        </Button>
+        <Button variant="outlined" color="primary" onClick={onOpenJoin} data-testid="join-board-btn">
+          Join board
+        </Button>
       </CardActions>
-      <TextPromptDialog
-        prompt="Enter contract address"
-        isOpen={textPromptOpen}
-        onCancel={() => {
-          setTextPromptOpen(false);
-        }}
-        onSubmit={(text) => {
-          setTextPromptOpen(false);
-          onJoinBoardCallback(text);
-        }}
-      />
-    </React.Fragment>
+
+      <Dialog open={textPromptOpen} onClose={onCloseJoin} fullWidth maxWidth="sm">
+        <DialogTitle>Join existing board</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            label="Contract address (hex)"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            inputProps={{ 'data-testid': 'join-address-input' }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={onCloseJoin} variant="outlined" color="inherit">
+            Cancel
+          </Button>
+          <Button onClick={onConfirmJoin} variant="contained" color="primary" disabled={!address.trim().length}>
+            Join
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 };
