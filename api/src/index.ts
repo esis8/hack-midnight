@@ -22,6 +22,7 @@ import { type BBoardPrivateState, createBBoardPrivateState, witnesses } from '..
 import * as utils from './utils/index.js';
 import { deployContract, findDeployedContract } from '@midnight-ntwrk/midnight-js-contracts';
 import { combineLatest, map, tap, from, type Observable, shareReplay } from 'rxjs';
+import { toHex } from '@midnight-ntwrk/midnight-js-utils';
 
 /** @internal */
 const bboardContractInstance: BBoardContract = new Contract(witnesses);
@@ -51,38 +52,46 @@ export class BBoardAPI implements DeployedBBoardAPI {
   ) {
     this.deployedContractAddress = deployedContract.deployTxData.public.contractAddress;
 
-     const privateState$ = from(
+    const privateState$ = from(
       providers.privateStateProvider.get(bboardPrivateStateKey) as Promise<BBoardPrivateState>,
     ).pipe(shareReplay(1));
 
-const ledger$ = providers.publicDataProvider.contractStateObservable(this.deployedContractAddress, { type: 'latest' }).pipe(
-  map((contractState) => ledger(contractState.data)),
-  tap((ledgerState) =>
-    logger?.trace({
-      ledgerStateChanged: {
-        ledgerState: {
-          title: ledgerState.title.value,
+    const ledger$ = providers.publicDataProvider
+      .contractStateObservable(this.deployedContractAddress, { type: 'latest' })
+      .pipe(
+        map((contractState) => ledger(contractState.data)),
+        tap((ledgerState) =>
+          logger?.trace({
+            ledgerStateChanged: {
+              ledgerState: {
+                title: ledgerState.title.value,
+                message: ledgerState.message.value,
+              },
+            },
+          }),
+        ),
+      );
+
+    this.state$ = combineLatest([ledger$, privateState$]).pipe(
+      map(([ledgerState]) => {
+        return {
           message: ledgerState.message.value,
-          trueVotes: ledgerState.trueVotes,
-          falseVotes: ledgerState.falseVotes,
-        },
-      },
-    }),
-  ),
-);
+          title: ledgerState.title.value,
+        } as BBoardDerivedState;
+      }),
+    );
 
-this.state$ = combineLatest([ledger$, privateState$]).pipe(
-  map(([ledgerState]) => {
-    return {
-      message: ledgerState.message.value,
-      title: ledgerState.title.value,
-      trueVotes: ledgerState.trueVotes ?? 0n,
-      falseVotes: ledgerState.falseVotes ?? 0n,
-    } as BBoardDerivedState;
-  }),
-);
-
-    this.private$ = privateState$.pipe();
+    this.private$ = privateState$.pipe(
+      tap((privateState) =>
+        logger?.trace({
+          privateStateLoaded: {
+            secretKey: toHex(privateState.secretKey),
+            trueCount: privateState.trueCount,
+            falseCount: privateState.falseCount,
+          },
+        }),
+      ),
+    );
   }
 
   /**
@@ -109,7 +118,11 @@ this.state$ = combineLatest([ledger$, privateState$]).pipe(
     this.logger?.info(`setPublishOne: title="${title}"`);
     const txData = await this.deployedContract.callTx.setPublishOne(title, message);
     this.logger?.trace({
-      transactionAdded: { circuit: 'setPublishOne', txHash: txData.public.txHash, blockHeight: txData.public.blockHeight },
+      transactionAdded: {
+        circuit: 'setPublishOne',
+        txHash: txData.public.txHash,
+        blockHeight: txData.public.blockHeight,
+      },
     });
   }
 

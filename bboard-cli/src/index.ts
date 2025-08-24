@@ -170,12 +170,8 @@ const displayDerivedState = (ledgerState: BBoardDerivedState | undefined, logger
   if (ledgerState === undefined) {
     logger.info(`No bulletin board state currently available`);
   } else {
-    const boardState = ledgerState.state === STATE.occupied ? 'occupied' : 'vacant';
-    const latestMessage = ledgerState.state === STATE.occupied ? ledgerState.message : 'none';
-    logger.info(`Current state is: '${boardState}'`);
-    logger.info(`Current message is: '${latestMessage}'`);
-    logger.info(`Current instance is: ${ledgerState.instance}`);
-    logger.info(`Current poster is: '${ledgerState.isOwner ? 'you' : 'not you'}'`);
+    logger.info(`Current message is: '${ledgerState.message ?? 'none'}'`);
+    logger.info(`Current title is: ${ledgerState.title}`);
   }
 };
 

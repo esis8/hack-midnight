@@ -58,6 +58,4 @@ export type DeployedBBoardContract = FoundContract<BBoardContract>;
 export type BBoardDerivedState = {
   readonly message: string | undefined;
   readonly title: string | undefined;
-  readonly trueVotes: bigint;
-  readonly falseVotes: bigint;
 };

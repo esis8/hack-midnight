@@ -101,7 +101,6 @@ export const EmptyCardContent: React.FC<Readonly<EmptyCardContentProps>> = ({
       </CardContent>
 
       <CardActions>{/* empty */}</CardActions>
-
       <Dialog open={textPromptOpen} onClose={onCloseJoin} fullWidth maxWidth="sm">
         <CardContent>
           <TextField
