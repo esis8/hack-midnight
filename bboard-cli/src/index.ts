@@ -103,10 +103,37 @@ const deployOrJoin = async (providers: BBoardProviders, rli: Interface, logger: 
   while (true) {
     const choice = await rli.question(DEPLOY_OR_JOIN_QUESTION);
     switch (choice) {
-      case '1':
+      case '1': {
+        // NUEVO: solicitar título y address del deployador
+        const defaultDeployerHex = typeof providers.walletProvider.coinPublicKey === 'string'
+        ? providers.walletProvider.coinPublicKey
+        : toHex(providers.walletProvider.coinPublicKey as Uint8Array);
+        const title = await rli.question('Título del contrato: ');
+        const deployerHexInput = await rli.question(
+          `Address (hex) del deployador [${defaultDeployerHex} por defecto]: `
+        );
+        const deployerHex = (deployerHexInput?.trim()?.length ?? 0) > 0 ? deployerHexInput.trim() : defaultDeployerHex;
+
         api = await BBoardAPI.deploy(providers, logger);
         logger.info(`Deployed contract at address: ${api.deployedContractAddress}`);
+
+        // NUEVO: intentar inicializar on-chain (si la API ya expone initBoard)
+        try {
+          const maybeApi: any = api as unknown as { initBoard?: (title: string, deployerHex: string) => Promise<void> };
+          if (typeof maybeApi.initBoard === 'function') {
+            await maybeApi.initBoard(title, deployerHex);
+            logger.info(`Inicialización enviada (título y deployer).`);
+          } else {
+            logger.warn(
+              `initBoard no está disponible en tu versión de la API. Actualiza el paquete "api" para habilitarlo.`
+            );
+          }
+        } catch (e) {
+          logger.warn(`No se pudo inicializar el contrato automáticamente: ${(e as Error)?.message ?? e}`);
+        }
+
         return api;
+      }
       case '2':
         api = await BBoardAPI.join(providers, await rli.question('What is the contract address (in hex)? '), logger);
         logger.info(`Joined contract at address: ${api.deployedContractAddress}`);
@@ -137,10 +164,23 @@ const displayLedgerState = async (
   } else {
     const boardState = ledgerState.state === STATE.occupied ? 'occupied' : 'vacant';
     const latestMessage = !ledgerState.message.is_some ? 'none' : ledgerState.message.value;
+
+    // NUEVO: leer título y deployer si están inicializados
+    const title = !('boardTitle' in ledgerState) || !ledgerState.boardTitle.is_some
+      ? 'none'
+      : ledgerState.boardTitle.value;
+    const deployerHex = !('deployerAddress' in ledgerState) || !ledgerState.deployerAddress.is_some
+      ? 'none'
+      : toHex(ledgerState.deployerAddress.value);
+
     logger.info(`Current state is: '${boardState}'`);
     logger.info(`Current message is: '${latestMessage}'`);
     logger.info(`Current instance is: ${ledgerState.instance}`);
     logger.info(`Current poster is: '${toHex(ledgerState.poster)}'`);
+
+    // NUEVO: logs extra
+    logger.info(`Board title: '${title}'`);
+    logger.info(`Deployer address: '${deployerHex}'`);
   }
 };
 
