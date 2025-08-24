@@ -58,7 +58,7 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
     }
   }, [deployedBoardAPI]);
 
-    const onVote = useCallback(
+  const onVote = useCallback(
     async (choice: boolean) => {
       try {
         if (!deployedBoardAPI) return;
@@ -143,7 +143,17 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
   }, [boardState?.title, boardState?.message]);
 
   return (
-    <Card sx={{ position: 'relative', width: 420, height: 420, minWidth: 420, minHeight: 420 }} color="primary">
+    <Card
+      sx={{
+        position: 'relative',
+        width: 480,
+        minHeight: 460,
+        borderRadius: 3,
+        background: 'linear-gradient(145deg, #0f0f0f, #1c1c1c)',
+        color: '#e0e0e0',
+        boxShadow: '0 6px 20px rgba(0,0,0,0.5)',
+      }}
+    >
       {!boardDeployment$ && (
         <EmptyCardContent onCreateBoardCallback={onCreateBoard} onJoinBoardCallback={onJoinBoard} />
       )}
@@ -157,23 +167,24 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
             <CircularProgress data-testid="board-working-indicator" />
           </Backdrop>
           <Backdrop
-            sx={{ position: 'absolute', color: '#ff0000', zIndex: (theme) => theme.zIndex.drawer + 1 }}
+            sx={{ position: 'absolute', color: '#ff4d4d', zIndex: (theme) => theme.zIndex.drawer + 1 }}
             open={!!errorMessage}
           >
             <StopIcon fontSize="large" />
-            <Typography component="div" data-testid="board-error-message">
+            <Typography sx={{ fontSize: '1.1rem', fontWeight: 500 }} data-testid="board-error-message">
               {errorMessage}
             </Typography>
           </Backdrop>
 
           <CardHeader
-            titleTypographyProps={{ color: 'primary' }}
-            title={boardState ? boardState.title ?? 'Loading…' : 'Loading…'}
+            titleTypographyProps={{ sx: { color: '#fff', fontSize: '1.3rem', fontWeight: 600 } }}
+            subheaderTypographyProps={{ sx: { color: '#aaa', fontSize: '0.9rem' } }}
+            title={boardState ? (boardState.title ?? 'Loading…') : 'Loading…'}
             subheader={toShortFormatContractAddress(deployedBoardAPI?.deployedContractAddress) ?? undefined}
             action={
               deployedBoardAPI?.deployedContractAddress ? (
                 <IconButton title="Copy contract address" onClick={onCopyContractAddress}>
-                  <CopyIcon fontSize="small" />
+                  <CopyIcon sx={{ color: '#bbb' }} />
                 </IconButton>
               ) : (
                 <Skeleton variant="circular" width={20} height={20} />
@@ -181,25 +192,40 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
             }
           />
 
-          <CardContent>
-            {/* Editor de título + botón Save (mismo ancho que el mensaje) */}
+          <CardContent sx={{ px: 3, pb: 3 }}>
+            {/* Title editor */}
             {boardState ? (
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16 }}>
                 <TextField
                   fullWidth
                   label="Board title"
                   value={titleEditValue}
                   onChange={(e) => setTitleEditValue(e.target.value)}
-                  size="small"
-                  color="primary"
-                  inputProps={{ 'data-testid': 'board-title-input', style: { color: 'black' } }}
+                  size="medium"
+                  variant="outlined"
+                  InputProps={{
+                    style: { color: '#fff', fontSize: '1rem' },
+                  }}
+                  InputLabelProps={{ style: { color: '#d6d6d6' } }}
                   placeholder={'Set board title'}
                   disabled={!canPublish || isWorking}
+                  sx={{
+                    backgroundColor: '#000000', // dark gray background for fields
+                    borderRadius: '8px',
+                    border: '1px solid #333', // subtle border to separate
+                    color: '#f5f5f5', // light text for legibility
+                    padding: '0.6rem 1rem',
+                    fontSize: '0.95rem',
+                    '&::placeholder': {
+                      color: '#888', // softer gray placeholder
+                    },
+                  }}
                 />
                 {canPublish && (
                   <Button
                     variant="contained"
                     color="primary"
+                    sx={{ height: 44, borderRadius: 2 }}
                     onClick={onSavePublish}
                     data-testid="board-publish-save-btn"
                     disabled={
@@ -211,61 +237,70 @@ export const Board: React.FC<Readonly<BoardProps>> = ({ boardDeployment$ }) => {
                 )}
               </div>
             ) : (
-              <Skeleton variant="rectangular" width={380} height={44} style={{ marginBottom: 12 }} />
+              <Skeleton variant="rectangular" width={420} height={48} sx={{ mb: 2 }} />
             )}
 
-            {/* Área de mensaje: mismo ancho; editable sólo antes de publicar */}
+            {/* Message */}
             {boardState ? (
               !boardState.message ? (
                 <TextField
                   id="message-prompt"
                   data-testid="board-message-prompt"
                   variant="outlined"
-                  focused
                   fullWidth
                   multiline
-                  minRows={10}
-                  maxRows={10}
+                  minRows={8}
+                  maxRows={8}
                   placeholder="Message to post"
-                  size="small"
-                  color="primary"
-                  inputProps={{ style: { color: 'black' } }}
+                  InputProps={{ style: { color: '#fff', fontSize: '1rem' } }}
+                  InputLabelProps={{ style: { color: '#aaa1a1' } }}
                   value={messagePrompt}
                   onChange={(e) => setMessagePrompt(e.target.value)}
                   disabled={!canPublish || isWorking}
+                  sx={{
+                    backgroundColor: '#000000', // dark gray background for fields
+                    borderRadius: '8px',
+                    border: '1px solid #333', // subtle border to separate
+                    color: '#f5f5f5', // light text for legibility
+                    padding: '0.6rem 1rem',
+                    fontSize: '0.95rem',
+                    '&::placeholder': {
+                      color: '#888', // softer gray placeholder
+                    },
+                  }}
                 />
               ) : (
-                <Typography data-testid="board-posted-message" minHeight={240} color="primary">
+                <Typography
+                  data-testid="board-posted-message"
+                  sx={{ fontSize: '1.05rem', lineHeight: 1.6, color: '#ddd', minHeight: 220 }}
+                >
                   {boardState.message}
-                  {' ('}
-                   <Button
-                    onClick={() => onVote(true)}
-                    style={{ cursor: 'pointer' }}
-                    title="Vote up"
-                    disabled={isWorking || !deployedBoardAPI}
-                    data-testid="vote-up-btn"
-                  >
-                    👍 {boardState ? String(boardState.trueVotes) : '?'}
-                  </Button>
-                  {' | '}
-                  <Button
-                    onClick={() => onVote(false)}
-                    style={{ cursor: 'pointer' }}
-                    title="Vote down"
-                    disabled={isWorking || !deployedBoardAPI}
-                    data-testid="vote-down-btn"
-                  >
-                    👎 {boardState ? String(boardState.falseVotes) : '?'}
-                  </Button>
-                  {')'}
+                  <div style={{ marginTop: 16, display: 'flex', gap: 12 }}>
+                    <Button
+                      onClick={() => onVote(true)}
+                      sx={{ bgcolor: '#197e05', color: 'white', borderRadius: 2, '&:hover': { bgcolor: '#1565c0' } }}
+                      disabled={isWorking || !deployedBoardAPI}
+                      data-testid="vote-up-btn"
+                    >
+                      👍 {boardState ? String(boardState.trueVotes) : '?'}
+                    </Button>
+                    <Button
+                      onClick={() => onVote(false)}
+                      sx={{ bgcolor: '#e53935', color: 'white', borderRadius: 2, '&:hover': { bgcolor: '#c62828' } }}
+                      disabled={isWorking || !deployedBoardAPI}
+                      data-testid="vote-down-btn"
+                    >
+                      👎 {boardState ? String(boardState.falseVotes) : '?'}
+                    </Button>
+                  </div>
                 </Typography>
               )
             ) : (
-              <Skeleton variant="rectangular" width={380} height={240} />
+              <Skeleton variant="rectangular" width={420} height={220} />
             )}
           </CardContent>
 
-          <CardActions>{/* No actions after publish-once */}</CardActions>
+          <CardActions />
         </>
       )}
     </Card>

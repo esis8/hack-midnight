@@ -53,14 +53,14 @@ export const EmptyCardContent: React.FC<Readonly<EmptyCardContentProps>> = ({
   return (
     <>
       <CardContent>
-        <p>Deploy a new board or join an existing one.</p>
+        <p>Create a new proposal or join an existing one.</p>
       </CardContent>
       <CardActions>
         <Button variant="contained" color="primary" onClick={onCreateBoardCallback} data-testid="deploy-board-btn">
-          Create board
+          Create
         </Button>
         <Button variant="outlined" color="primary" onClick={onOpenJoin} data-testid="join-board-btn">
-          Join board
+          Search
         </Button>
       </CardActions>
 
