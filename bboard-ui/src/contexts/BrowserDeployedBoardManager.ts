@@ -1,18 +1,3 @@
-// This file is part of midnightntwrk/example-counter.
-// Copyright (C) 2025 Midnight Foundation
-// SPDX-License-Identifier: Apache-2.0
-// Licensed under the Apache License, Version 2.0 (the "License");
-// You may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 import {
   type DeployedBBoardAPI,
   BBoardAPI,
@@ -43,7 +28,6 @@ import {
   type ServiceUriConfig,
 } from '@midnight-ntwrk/dapp-connector-api';
 import { levelPrivateStateProvider } from '@midnight-ntwrk/midnight-js-level-private-state-provider';
-// import { NodeZkConfigProvider } from '@midnight-ntwrk/midnight-js-node-zk-config-provider';
 import { FetchZkConfigProvider } from '@midnight-ntwrk/midnight-js-fetch-zk-config-provider';
 import { httpClientProofProvider } from '@midnight-ntwrk/midnight-js-http-client-proof-provider';
 import { indexerPublicDataProvider } from '@midnight-ntwrk/midnight-js-indexer-public-data-provider';
@@ -57,94 +41,40 @@ import { Transaction as ZswapTransaction } from '@midnight-ntwrk/zswap';
 import semver from 'semver';
 import { getLedgerNetworkId, getZswapNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
 
-/**
- * An in-progress bulletin board deployment.
- */
 export interface InProgressBoardDeployment {
   readonly status: 'in-progress';
 }
 
-/**
- * A deployed bulletin board deployment.
- */
 export interface DeployedBoardDeployment {
   readonly status: 'deployed';
 
-  /**
-   * The {@link DeployedBBoardAPI} instance when connected to an on network bulletin board contract.
-   */
   readonly api: DeployedBBoardAPI;
 }
 
-/**
- * A failed bulletin board deployment.
- */
 export interface FailedBoardDeployment {
   readonly status: 'failed';
 
-  /**
-   * The error that caused the deployment to fail.
-   */
   readonly error: Error;
 }
 
-/**
- * A bulletin board deployment.
- */
 export type BoardDeployment = InProgressBoardDeployment | DeployedBoardDeployment | FailedBoardDeployment;
 
-/**
- * Provides access to bulletin board deployments.
- */
 export interface DeployedBoardAPIProvider {
-  /**
-   * Gets the observable set of board deployments.
-   *
-   * @remarks
-   * This property represents an observable array of {@link BoardDeployment}, each also an
-   * observable. Changes to the array will be emitted as boards are resolved (deployed or joined),
-   * while changes to each underlying board can be observed via each item in the array.
-   */
   readonly boardDeployments$: Observable<Array<Observable<BoardDeployment>>>;
-
-  /**
-   * Joins or deploys a bulletin board contract.
-   *
-   * @param contractAddress An optional contract address to use when resolving.
-   * @returns An observable board deployment.
-   *
-   * @remarks
-   * For a given `contractAddress`, the method will attempt to find and join the identified bulletin board
-   * contract; otherwise it will attempt to deploy a new one.
-   */
   readonly resolve: (contractAddress?: ContractAddress) => Observable<BoardDeployment>;
 }
 
-/**
- * A {@link DeployedBoardAPIProvider} that manages bulletin board deployments in a browser setting.
- *
- * @remarks
- * {@link BrowserDeployedBoardManager} configures and manages a connection to the Midnight Lace
- * wallet, along with a collection of additional providers that work in a web-browser setting.
- */
 export class BrowserDeployedBoardManager implements DeployedBoardAPIProvider {
   readonly #boardDeploymentsSubject: BehaviorSubject<Array<BehaviorSubject<BoardDeployment>>>;
   #initializedProviders: Promise<BBoardProviders> | undefined;
 
-  /**
-   * Initializes a new {@link BrowserDeployedBoardManager} instance.
-   *
-   * @param logger The `pino` logger to for logging.
-   */
   constructor(private readonly logger: Logger) {
     this.#boardDeploymentsSubject = new BehaviorSubject<Array<BehaviorSubject<BoardDeployment>>>([]);
     this.boardDeployments$ = this.#boardDeploymentsSubject;
   }
 
-  /** @inheritdoc */
   readonly boardDeployments$: Observable<Array<Observable<BoardDeployment>>>;
 
-  /** @inheritdoc */
   resolve(contractAddress?: ContractAddress): Observable<BoardDeployment> {
     const deployments = this.#boardDeploymentsSubject.value;
     let deployment = deployments.find(
@@ -172,19 +102,20 @@ export class BrowserDeployedBoardManager implements DeployedBoardAPIProvider {
   }
 
   private getProviders(): Promise<BBoardProviders> {
-    // We use a cached `Promise` to hold the providers. This will:
-    //
-    // 1. Cache and re-use the providers (including the configured connector API), and
-    // 2. Act as a synchronization point if multiple contract deploys or joins run concurrently.
-    //    Concurrent calls to `getProviders()` will receive, and ultimately await, the same
-    //    `Promise`.
     return this.#initializedProviders ?? (this.#initializedProviders = initializeProviders(this.logger));
   }
 
   private async deployDeployment(deployment: BehaviorSubject<BoardDeployment>): Promise<void> {
     try {
       const providers = await this.getProviders();
-      const api = await BBoardAPI.deploy(providers, this.logger);
+
+      // Solicitar el título requerido por el constructor del contrato
+      const title = (window.prompt('Enter board title') ?? '').trim();
+      if (!title.length) {
+        throw new Error('Board title is required');
+      }
+
+      const api = await BBoardAPI.deploy(providers, title, this.logger);
 
       deployment.next({
         status: 'deployed',
@@ -219,11 +150,10 @@ export class BrowserDeployedBoardManager implements DeployedBoardAPIProvider {
   }
 }
 
-/** @internal */
 const initializeProviders = async (logger: Logger): Promise<BBoardProviders> => {
   const { wallet, uris } = await connectToWallet(logger);
   const walletState = await wallet.state();
-  const zkConfigPath = window.location.origin; // '../../../contract/src/managed/bboard';
+  const zkConfigPath = window.location.origin;
 
   console.log(`Connecting to wallet with network ID: ${getLedgerNetworkId()}`);
 
