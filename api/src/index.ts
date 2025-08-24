@@ -82,16 +82,7 @@ this.state$ = combineLatest([ledger$, privateState$]).pipe(
   }),
 );
 
-    this.private$ = privateState$.pipe(
-      tap((privateState) =>
-        logger?.trace({
-          privateStateLoaded: {
-            trueCount: privateState.trueCount,
-            falseCount: privateState.falseCount,
-          },
-        }),
-      ),
-    );
+    this.private$ = privateState$.pipe();
   }
 
   /**
